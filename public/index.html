@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      :root {
+        --primary-color: #2563eb;
+        --secondary-color: #1e40af;
+        --text-color: #1f2937;
+        --bg-color: #f0f2f5;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 1200px;
+        width: 90%;
+        margin: 2rem auto;
+        background-color: white;
+        padding: clamp(1rem, 5vw, 2rem);
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      }
+
+      .header {
+        text-align: center;
+        color: var(--text-color);
+        margin-bottom: 2rem;
+        padding: 2rem 0;
+        border-bottom: 2px solid var(--bg-color);
+      }
+
+      .header h1 {
+        font-size: clamp(2rem, 5vw, 3rem);
+        margin-bottom: 1rem;
+        color: var(--primary-color);
+      }
+
+      .header p {
+        font-size: clamp(1rem, 2vw, 1.2rem);
+        color: #666;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        body {
+          padding: 10px;
+        }
+
+        .container {
+          width: 95%;
+          margin: 1rem auto;
+        }
+      }
+
+      /* Animation */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .container {
+        animation: fadeIn 0.6s ease-out;
+      }
+
+      .webrtc-position-centered .webrtc_widget_outer_wrapper {
+        bottom: unset !important;
+        right: unset !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%);
+        align-items: center !important;
+      }
+    </style>
+  </head>
+  <body class="cognigy-webrtc-embed">
+    <script type="module" src="./webRTCWidget.js"></script>
+  </body>
+  <script>
+    addEventListener("load", (event) => {
+      if (window.initWebRTCWidget) {
+        const ENDPOINT_BASE_URL_WITH_PROTOCOL =
+          window?.__COGNIGY_WEBRTC_CONFIG__?.ENDPOINT_BASE_URL_WITH_PROTOCOL ??
+          "";
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get("token");
+        const userId = urlParams.get("user");
+        window.initWebRTCWidget(`${ENDPOINT_BASE_URL_WITH_PROTOCOL}/${token}`, {userId});
+      }
+    });
+  </script>
+</html>

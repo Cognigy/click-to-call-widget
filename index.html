@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebRTC Widget Demo</title>
+    <style>
+      :root {
+        --primary-color: #2563eb;
+        --secondary-color: #1e40af;
+        --text-color: #1f2937;
+        --bg-color: #cfcfcf;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        padding: 20px;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: var(--bg-color);
+        color: #ffffff;
+        line-height: 1.6;
+      }
+
+      .container {
+		display: none;
+        max-width: 600px;
+        width: 90%;
+        margin: 2rem auto;
+        background-color: #1e1e2e;
+        padding: clamp(1rem, 5vw, 2rem);
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #2d2d44;
+      }
+
+      .header h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        color: #3b82f6;
+      }
+
+      .header p {
+        font-size: 0.9rem;
+        color: #9ca3af;
+      }
+
+      .info-section {
+        margin-bottom: 1.5rem;
+      }
+
+      .info-section h3 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #9ca3af;
+        margin-bottom: 0.75rem;
+      }
+
+      .info-box {
+        background-color: #2d2d44;
+        border-radius: 8px;
+        padding: 1rem;
+        font-size: 0.85rem;
+      }
+
+      .info-box code {
+        background-color: #1a1a2e;
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        font-family: monospace;
+        color: #a5b4fc;
+      }
+
+      .option-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        user-select: none;
+        padding: 0.5rem 0;
+      }
+
+      .option-toggle input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #3b82f6;
+      }
+
+      .option-toggle label {
+        cursor: pointer;
+        font-size: 0.9rem;
+      }
+
+      .color-picker-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 0;
+      }
+
+      .color-picker-row label {
+        font-size: 0.9rem;
+        min-width: 160px;
+      }
+
+      .color-picker-row input[type="color"] {
+        width: 40px;
+        height: 28px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        background: none;
+        padding: 0;
+      }
+
+      .color-picker-row input[type="color"]::-webkit-color-swatch-wrapper {
+        padding: 0;
+      }
+
+      .color-picker-row input[type="color"]::-webkit-color-swatch {
+        border: 1px solid #4b5563;
+        border-radius: 4px;
+      }
+
+      .color-picker-row .color-value {
+        font-family: monospace;
+        font-size: 0.8rem;
+        color: #a5b4fc;
+        background-color: #1a1a2e;
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+      }
+
+      .demo-badge {
+        display: inline-block;
+        padding: 0.2rem 0.4rem;
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        font-size: 0.65rem;
+        border-radius: 4px;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-left: 0.5rem;
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 10px;
+        }
+
+        .container {
+          width: 95%;
+          margin: 1rem auto;
+        }
+      }
+
+      .webrtc-position-centered .webrtc_widget_outer_wrapper {
+        bottom: unset !important;
+        right: unset !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%);
+        align-items: center !important;
+      }
+
+      .demo-page-content {
+        position: fixed;
+        bottom: 16px;
+        right: 16px;
+        width: 300px;
+        padding: 16px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--text-color);
+        z-index: 0;
+        pointer-events: none;
+      }
+
+      .demo-page-content p {
+        margin-bottom: 8px;
+      }
+
+      .demo-page-content .page-title {
+        font-weight: 600;
+        font-size: 16px;
+        margin-bottom: 12px;
+      }
+    </style>
+  </head>
+  <body class="cognigy-webrtc-embed">
+    <div class="container">
+      <div class="header">
+        <h1>WebRTC Widget Demo</h1>
+        <p>Test the widget with mock audio streams</p>
+      </div>
+      
+      <div class="info-section">
+        <h3>Theme Configuration</h3>
+        <div class="info-box">
+          <p>The widget theme is controlled via the <code>theme</code> parameter:</p>
+          <ul style="margin: 0.75rem 0 0 1.25rem; color: #d1d5db;">
+            <li><code>darkMode</code> (default)</li>
+            <li><code>cleanWhite</code></li>
+            <li><code>aiPurple</code></li>
+          </ul>
+          <p style="margin-top: 0.75rem; color: #9ca3af; font-size: 0.8rem;">
+            Use URL param <code>?theme=aiPurple</code> to preview different themes.
+          </p>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h3>Demo Options</h3>
+        <div class="option-toggle">
+          <input type="checkbox" id="demoMode"> 
+          <label for="demoMode">
+            Demo Mode
+            <span class="demo-badge">Mock Call</span>
+          </label>
+        </div>
+        <div class="option-toggle">
+          <input type="checkbox" id="enableTranscription" checked>
+          <label for="enableTranscription">Show Transcription</label>
+        </div>
+        <div class="option-toggle">
+          <input type="checkbox" id="transparentBackground" checked>
+          <label for="transparentBackground">Transparent Background</label>
+          <span style="font-size: 0.75rem; color: #9ca3af; margin-left: 0.5rem;">(unchecked = custom/colored)</span>
+        </div>
+        <div class="color-picker-row">
+          <label for="transcriptBgColor">Transcript Background:</label>
+          <input type="color" id="transcriptBgColor" value="#000000">
+          <span class="color-value" id="transcriptBgColorValue">#000000</span>
+        </div>
+        <div class="option-toggle">
+          <input type="checkbox" id="customBasePanelBg">
+          <label for="customBasePanelBg">Custom Base Panel Background</label>
+        </div>
+        <div class="color-picker-row" id="basePanelBgRow" style="opacity: 0.5; pointer-events: none;">
+          <label for="basePanelBgColor">Base Panel Background:</label>
+          <input type="color" id="basePanelBgColor" value="#1a1a2e">
+          <span class="color-value" id="basePanelBgColorValue">#1a1a2e</span>
+        </div>
+        <div class="color-picker-row">
+          <label for="pageBgColor">Page Background:</label>
+          <input type="color" id="pageBgColor" value="#cfcfcf">
+          <span class="color-value" id="pageBgColorValue">#cfcfcf</span>
+        </div>
+        <div class="color-picker-row">
+          <label for="transcriptBgOpacity">Transcript Bg Opacity:</label>
+          <input type="range" id="transcriptBgOpacity" min="0" max="1" step="0.05" value="0.8" style="width: 100px;">
+          <span class="color-value" id="transcriptBgOpacityValue">0.8</span>
+        </div>
+        <div class="option-toggle">
+          <input type="checkbox" id="showBackgroundText" checked>
+          <label for="showBackgroundText">Show Background Text</label>
+        </div>
+      </div>
+    </div>
+
+
+    <script type="module" src="./src/main.tsx"></script>
+    <script>
+      let currentDemoMode = false;
+      let currentTranscription = true;
+      let currentTransparentBackground = true;
+      let currentTranscriptBgColor = '#000000';
+      let currentTranscriptBgOpacity = 0.8;
+      let currentBasePanelBgColor = null;
+      let currentPageBgColor = '#cfcfcf';
+      let currentShowBackgroundText = true;
+
+      function syncOptionsFromDom() {
+        const demoModeCheckbox = document.getElementById("demoMode");
+        const transcriptionCheckbox = document.getElementById("enableTranscription");
+        const transparentBackgroundCheckbox = document.getElementById("transparentBackground");
+
+        if (demoModeCheckbox) {
+          currentDemoMode = demoModeCheckbox.checked;
+        }
+
+        if (transcriptionCheckbox) {
+          currentTranscription = transcriptionCheckbox.checked;
+        }
+
+        if (transparentBackgroundCheckbox) {
+          currentTransparentBackground = transparentBackgroundCheckbox.checked;
+        }
+
+        const transcriptBgColorPicker = document.getElementById("transcriptBgColor");
+        if (transcriptBgColorPicker) {
+          currentTranscriptBgColor = transcriptBgColorPicker.value;
+        }
+
+        const pageBgColorPicker = document.getElementById("pageBgColor");
+        if (pageBgColorPicker) {
+          currentPageBgColor = pageBgColorPicker.value;
+        }
+
+        const transcriptBgOpacitySlider = document.getElementById("transcriptBgOpacity");
+        if (transcriptBgOpacitySlider) {
+          currentTranscriptBgOpacity = parseFloat(transcriptBgOpacitySlider.value);
+        }
+      }
+
+      function getThemeFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const theme = urlParams.get("theme");
+        if (theme && ['cleanWhite', 'darkMode', 'aiPurple'].includes(theme)) {
+          return theme;
+        }
+        return null;
+      }
+
+      function initWidget() {
+        if (window.initWebRTCWidget) {
+          syncOptionsFromDom();
+          
+          const urlParams = new URLSearchParams(window.location.search);
+          const tokenFromUrl = urlParams.get("token");
+          const userId = urlParams.get("user");
+          const themeOverride = getThemeFromUrl();
+          const token = tokenFromUrl || "/src/mocks/mock.json";
+
+          const widgetOverrides = {
+              enableTranscription: currentTranscription,
+              transcriptBackground: currentTransparentBackground ? 'transparent' : 'custom',
+              transcriptBackgroundColor: currentTranscriptBgColor,
+              transcriptBackgroundOpacity: currentTranscriptBgOpacity,
+              // Add your test logo URL here:
+              // avatarUrl: 'https://placehold.co/100x100'
+          };
+
+          if (currentBasePanelBgColor) {
+            widgetOverrides.basePanelBackgroundColor = currentBasePanelBgColor;
+          }
+
+          const options = { 
+            userId,
+            demoMode: currentDemoMode,
+            widgetOverrides
+          };
+          
+          console.log('[index.html] initWidget called with demoMode:', currentDemoMode);
+
+          if (themeOverride) {
+            options.widgetOverrides.theme = themeOverride;
+          }
+          
+          window.initWebRTCWidget(token, options);
+        }
+      }
+
+      document.getElementById('demoMode').addEventListener('change', (e) => {
+        currentDemoMode = e.target.checked;
+        console.log('[Demo] Demo mode changed to:', currentDemoMode);
+        initWidget();
+      });
+
+      document.getElementById('enableTranscription').addEventListener('change', (e) => {
+        currentTranscription = e.target.checked;
+        initWidget();
+      });
+
+      document.getElementById('transparentBackground').addEventListener('change', (e) => {
+        currentTransparentBackground = e.target.checked;
+        console.log('[Demo] Transparent background changed to:', currentTransparentBackground);
+        initWidget();
+      });
+
+      document.getElementById('transcriptBgColor').addEventListener('input', (e) => {
+        currentTranscriptBgColor = e.target.value;
+        document.getElementById('transcriptBgColorValue').textContent = currentTranscriptBgColor;
+        initWidget();
+      });
+
+      document.getElementById('customBasePanelBg').addEventListener('change', (e) => {
+        const basePanelBgRow = document.getElementById('basePanelBgRow');
+        if (e.target.checked) {
+          basePanelBgRow.style.opacity = '1';
+          basePanelBgRow.style.pointerEvents = 'auto';
+          currentBasePanelBgColor = document.getElementById('basePanelBgColor').value;
+        } else {
+          basePanelBgRow.style.opacity = '0.5';
+          basePanelBgRow.style.pointerEvents = 'none';
+          currentBasePanelBgColor = null;
+        }
+        initWidget();
+      });
+
+      document.getElementById('basePanelBgColor').addEventListener('input', (e) => {
+        currentBasePanelBgColor = e.target.value;
+        document.getElementById('basePanelBgColorValue').textContent = currentBasePanelBgColor;
+        initWidget();
+      });
+
+      document.getElementById('pageBgColor').addEventListener('input', (e) => {
+        currentPageBgColor = e.target.value;
+        document.getElementById('pageBgColorValue').textContent = currentPageBgColor;
+        document.body.style.backgroundColor = currentPageBgColor;
+      });
+
+      document.getElementById('transcriptBgOpacity').addEventListener('input', (e) => {
+        currentTranscriptBgOpacity = parseFloat(e.target.value);
+        document.getElementById('transcriptBgOpacityValue').textContent = currentTranscriptBgOpacity.toFixed(2);
+        initWidget();
+      });
+
+      document.getElementById('showBackgroundText').addEventListener('change', (e) => {
+        currentShowBackgroundText = e.target.checked;
+        const bgTextElement = document.querySelector('.demo-page-content');
+        if (bgTextElement) {
+          bgTextElement.style.display = currentShowBackgroundText ? 'block' : 'none';
+        }
+      });
+
+      addEventListener("load", () => {
+        const demoModeCheckbox = document.getElementById("demoMode");
+        if (demoModeCheckbox) {
+          demoModeCheckbox.checked = false;
+          currentDemoMode = false;
+        }
+
+        const transcriptionCheckbox = document.getElementById("enableTranscription");
+        if (transcriptionCheckbox) {
+          transcriptionCheckbox.checked = true;
+          currentTranscription = true;
+        }
+
+        const transparentBackgroundCheckbox = document.getElementById("transparentBackground");
+        if (transparentBackgroundCheckbox) {
+          transparentBackgroundCheckbox.checked = true;
+          currentTransparentBackground = true;
+        }
+
+        const transcriptBgColorPicker = document.getElementById("transcriptBgColor");
+        if (transcriptBgColorPicker) {
+          transcriptBgColorPicker.value = currentTranscriptBgColor;
+          document.getElementById('transcriptBgColorValue').textContent = currentTranscriptBgColor;
+        }
+
+        const customBasePanelBgCheckbox = document.getElementById("customBasePanelBg");
+        const basePanelBgRow = document.getElementById("basePanelBgRow");
+        if (customBasePanelBgCheckbox) {
+          customBasePanelBgCheckbox.checked = false;
+          currentBasePanelBgColor = null;
+          if (basePanelBgRow) {
+            basePanelBgRow.style.opacity = '0.5';
+            basePanelBgRow.style.pointerEvents = 'none';
+          }
+        }
+
+        const basePanelBgColorPicker = document.getElementById("basePanelBgColor");
+        if (basePanelBgColorPicker) {
+          basePanelBgColorPicker.value = '#1a1a2e';
+          document.getElementById('basePanelBgColorValue').textContent = '#1a1a2e';
+        }
+
+        const pageBgColorPicker = document.getElementById("pageBgColor");
+        if (pageBgColorPicker) {
+          pageBgColorPicker.value = currentPageBgColor;
+          document.getElementById('pageBgColorValue').textContent = currentPageBgColor;
+          document.body.style.backgroundColor = currentPageBgColor;
+        }
+
+        const transcriptBgOpacitySlider = document.getElementById("transcriptBgOpacity");
+        if (transcriptBgOpacitySlider) {
+          transcriptBgOpacitySlider.value = currentTranscriptBgOpacity;
+          document.getElementById('transcriptBgOpacityValue').textContent = currentTranscriptBgOpacity.toFixed(2);
+        }
+
+        const showBackgroundTextCheckbox = document.getElementById("showBackgroundText");
+        if (showBackgroundTextCheckbox) {
+          showBackgroundTextCheckbox.checked = currentShowBackgroundText;
+          const bgTextElement = document.querySelector('.demo-page-content');
+          if (bgTextElement) {
+            bgTextElement.style.display = currentShowBackgroundText ? 'block' : 'none';
+          }
+        }
+
+        initWidget();
+      });
+    </script>
+  </body>
+</html>

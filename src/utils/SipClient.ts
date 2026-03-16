@@ -1,0 +1,86 @@
+import events from "events";
+import { type UA as IUA, WebSocketInterface, UA } from "jssip";
+import type { UAEventMap } from "jssip/lib/UA";
+import { SipSession } from "./SipSession";
+import type { TExtendedRTCSession } from "../types";
+
+interface ClientSettings {
+	wsUri: string;
+	pcConfig?: RTCConfiguration;
+}
+
+interface Client {
+	fullUsername: string;
+	password: string;
+	username: string;
+}
+
+export class SipClient extends events.EventEmitter {
+	private _ua: IUA;
+	private _pcConfig?: RTCConfiguration;
+
+	constructor(client: Client, settings: ClientSettings) {
+		super();
+		this._pcConfig = settings.pcConfig;
+
+		console.log({ client, settings }, "creating a sip client");
+
+		const socket = new WebSocketInterface(settings.wsUri);
+		const uri = `sip:${client.fullUsername}`;
+
+		const ua = {
+			uri,
+			password: client.password,
+			authorization_user: client.username,
+			sockets: [socket],
+			register: true,
+		};
+
+		this._ua = new UA(ua);
+
+		["connecting", "connected", "disconnected", "registrationFailed"].forEach((evtName: any) =>
+			this._ua.on(evtName as keyof UAEventMap, (data: any) =>
+				this.emit(evtName, { ...data, client })
+			)
+		);
+		this._ua.on("registered", (data: any) => {
+			console.log("registered", data);
+		})
+		this._ua.on("newRTCSession", (data: any) => {
+			const rtcSession = data.session;
+			this._onSession(rtcSession);
+		});
+	}
+
+	start() {
+		console.log("start()");
+		this._ua.start();
+	}
+
+	stop() {
+		console.log("stop()");
+		this._ua.stop();
+	}
+
+	call(number: string) {
+		console.log(`call() [number: ${number}]`);
+		this._ua.call(number, {
+			//typings are wrong, see node_modules/jssip/lib/RTCSession.js line 285
+			//@ts-ignore
+			data: {
+				originalNumber: number,
+			},
+			mediaConstraints: { audio: true, video: false },
+			pcConfig: this._pcConfig,
+		});
+	}
+
+	_onSession(rtcSession: TExtendedRTCSession) {
+		const session = new SipSession(rtcSession, {
+			pcConfig: this._pcConfig,
+			onSession: this._onSession.bind(this),
+		});
+		this.emit("newRTCSession", session);
+		this.emit("session", session);
+	}
+}
