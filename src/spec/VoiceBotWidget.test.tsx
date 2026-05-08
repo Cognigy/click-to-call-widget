@@ -570,6 +570,51 @@ describe("VoiceBotWidget", () => {
 		});
 	});
 
+	describe("VoiceBotWidget — updateSettings imperative handle", () => {
+		it("exposes updateSettings on the widget ref", async () => {
+			const ref = { current: null as any };
+
+			vi.spyOn(WebrtcContext, "useWebrtcContext").mockReturnValue({ ...mockData, options: mockOptions } as any);
+
+			render(
+				<WebrtcContextProvider token="test-token">
+					<VoiceBotWidget ref={ref} />
+				</WebrtcContextProvider>
+			);
+
+			await waitFor(() => {
+				expect(ref.current).not.toBeNull();
+			});
+
+			expect(typeof ref.current.updateSettings).toBe("function");
+		});
+
+		it("updateSettings dispatches UPDATE_SETTINGS with the payload", async () => {
+			const dispatchSpy = vi.fn();
+			vi.spyOn(WebrtcContext, "useWebrtcDispatch").mockReturnValue(dispatchSpy);
+			vi.spyOn(WebrtcContext, "useWebrtcContext").mockReturnValue({ ...mockData, options: mockOptions } as any);
+
+			const ref = { current: null as any };
+
+			render(
+				<WebrtcContextProvider token="test-token">
+					<VoiceBotWidget ref={ref} />
+				</WebrtcContextProvider>
+			);
+
+			await waitFor(() => {
+				expect(ref.current).not.toBeNull();
+			});
+
+			ref.current.updateSettings({ webrtcWidgetConfig: { tagline: "New tagline" } });
+
+			expect(dispatchSpy).toHaveBeenCalledWith({
+				type: "UPDATE_SETTINGS",
+				payload: { webrtcWidgetConfig: { tagline: "New tagline" } },
+			});
+		});
+	});
+
 	describe("Transcription functionality", () => {
 		it("should emit transcription event with correct structure when handleNewInfo receives transcription data", async () => {
 			const transcriptionHandler = vi.fn();

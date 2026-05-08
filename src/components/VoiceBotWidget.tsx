@@ -9,8 +9,9 @@ import TranscriptSection from "./TranscriptSection";
 import { CallDurationDisplay } from "./CallDurationDisplay";
 import type { TranscriptMessage } from "./TranscriptDisplay";
 import { getLocalStore, shouldEnableEndCall, callReducer, initialCallState } from "../helpers";
-import { CallActionType } from "../types";
-import { useWebrtcContext } from "./WebrtcContextProvider";
+import { CallActionType, ActionTypes } from "../types";
+import type { IUpdateableSettings } from "../types";
+import { useWebrtcContext, useWebrtcDispatch } from "./WebrtcContextProvider";
 import type { SipSession } from "../utils/SipSession";
 
 import { CALL_PRIVACY_PERMISSION_KEY } from "../constants/constants";
@@ -21,6 +22,7 @@ import { VoiceBotWidgetContainer } from "./VoiceBotWidget.styles";
 
 const VoiceBotWidget = forwardRef((_, ref) => {
 	const config = useWebrtcContext();
+	const webrtcDispatch = useWebrtcDispatch();
 	const { startCall, userAgentRef } = useSip();
 
 	const [state, dispatch] = useReducer(callReducer, initialCallState);
@@ -307,9 +309,12 @@ const VoiceBotWidget = forwardRef((_, ref) => {
 		() => {
 			return {
 				on: eventHandler,
+				updateSettings: (settings: IUpdateableSettings) => {
+					webrtcDispatch({ type: ActionTypes.UPDATE_SETTINGS, payload: settings });
+				},
 			};
 		},
-		[eventHandler]
+		[eventHandler, webrtcDispatch]
 	);
 
 	const { isCalling, isCallAnswered, isMuted, sessionStatus, transcriptMessages, remoteStream, localStream } = state;
