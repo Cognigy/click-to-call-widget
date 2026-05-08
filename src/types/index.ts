@@ -86,17 +86,18 @@ interface IWidgetOverrides {
 	basePanelBackgroundColor?: string;
 }
 
-type IUpdateableSettings = Omit<Partial<IOptions>, 'userId' | 'demoMode'> & {
-	webrtcWidgetConfig?: Partial<Omit<IWebrtcWidgetConfig, 'active'>>;
-	settings?: Partial<ISettings>;
-};
-
 interface IOptions {
 	userId?: string;
 	ui?: IUi;
 	widgetOverrides?: IWidgetOverrides;
 	demoMode?: boolean;
 }
+
+type IUpdateableSettings = Omit<Partial<IOptions>, 'userId' | 'demoMode'> & {
+	webrtcWidgetConfig?: Partial<Omit<IWebrtcWidgetConfig, 'active'>>;
+	settings?: Partial<ISettings>;
+};
+
 interface IWebrtcContext {
 	organisationId: string;
 	projectId: string;
