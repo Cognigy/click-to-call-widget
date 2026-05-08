@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { render } from "preact";
 import App from "./components/WebrtcWidget.tsx";
-import type { IOptions } from "./types/index.ts";
+import type { IOptions, IUpdateableSettings } from "./types/index.ts";
 
 const ASYNC_DELAY = process.env.NODE_ENV === "development" ? 500 : 0;
 
@@ -9,8 +9,13 @@ let currentWidgetContainer: HTMLElement | null = null;
 
 // import { worker } from "./mocks/browser";
 declare global {
+	interface IWidgetInstance {
+		on: (event: string, handler: (...args: any[]) => void) => void;
+		updateSettings: (settings: IUpdateableSettings) => void;
+	}
+
 	interface Window {
-		initWebRTCWidget: typeof initWebRTCWidget;
+		initWebRTCWidget: (token: string, options?: IOptions, callback?: (widget: IWidgetInstance) => void) => Promise<IWidgetInstance>;
 		destroyWebRTCWidget: typeof destroyWebRTCWidget;
 	}
 }
@@ -23,7 +28,11 @@ const destroyWebRTCWidget = () => {
 	}
 };
 
-const initWebRTCWidget = async (token: string, options?: IOptions, callback?: (webrtcWidget: typeof App) => void) => {
+const initWebRTCWidget = async (
+	token: string,
+	options?: IOptions,
+	callback?: (webrtcWidget: IWidgetInstance) => void
+): Promise<IWidgetInstance> => {
 	destroyWebRTCWidget();
 
 	return new Promise((resolve) => {
@@ -33,10 +42,10 @@ const initWebRTCWidget = async (token: string, options?: IOptions, callback?: (w
 
 	const newOptions: IOptions = options ? { ...options } : {};
 
-	let webrtcWidgetRef : typeof App | null = null;
+	let webrtcWidgetRef: IWidgetInstance | null = null;
 
 	setTimeout(async() => {
-		render(<App mainRef={(ref: typeof App) => {
+		render(<App mainRef={(ref: IWidgetInstance) => {
 			webrtcWidgetRef = ref;
 		}} token={token} options={newOptions} />, webrtcWidget);
 		while (!webrtcWidgetRef) {

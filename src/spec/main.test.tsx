@@ -8,7 +8,7 @@ vi.mock("../components/WebrtcWidget.tsx", () => {
   const AppMock = vi.fn(({ mainRef }) => {
     // Call the ref callback immediately with a mock ref
     if (mainRef) {
-      mainRef({ on: vi.fn() });
+      mainRef({ on: vi.fn(), updateSettings: vi.fn() });
     }
     return null;
   });
