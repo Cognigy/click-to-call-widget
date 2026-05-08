@@ -15,13 +15,14 @@ Expose an `updateSettings` method on the widget instance returned by `initWebRTC
 ## Scope
 
 ### Updatable (via `IUpdateableSettings`)
-- `IOptions` fields: `userId`, `ui.labels`, `widgetOverrides`, `demoMode`
+- `IOptions` fields: `ui.labels`, `widgetOverrides`
 - `IWebrtcWidgetConfig` fields (minus `active`): `label`, `tagline`, `theme`, `avatarLogoUrl`, `transcription`, `basePanelBackgroundColor`, `demoPage`
 - `ISettings` fields: `privacyNotice`, `transcription`
 
 ### Protected (never updatable)
 - `ISipConnectivityInfo` (`username`, `password`, `wsUri`, `realm`, `applicationSid`)
 - `IEndpointSettings` core fields: `snapshotId`, `endpointUrlToken`, `endpointName`, `channel`, `localeReferenceId`, `collectAnalytics`, `active`, `version`
+- `IOptions` fields: `userId`, `demoMode`
 
 ---
 
@@ -32,7 +33,7 @@ Expose an `updateSettings` method on the widget instance returned by `initWebRTC
 Add a new intersection type. All existing interfaces (`IOptions`, `IWebrtcWidgetConfig`, `ISettings`) remain **unchanged**.
 
 ```typescript
-type IUpdateableSettings = Partial<IOptions> & {
+type IUpdateableSettings = Omit<Partial<IOptions>, 'userId' | 'demoMode'> & {
   webrtcWidgetConfig?: Partial<Omit<IWebrtcWidgetConfig, 'active'>>;
   settings?: Partial<ISettings>;
 };
@@ -65,7 +66,6 @@ case ActionTypes.UPDATE_SETTINGS: {
     ...state,
     options: {
       ...state.options,
-      ...optionFields,
       ...(optionFields.ui && {
         ui: {
           ...state.options?.ui,
@@ -109,7 +109,7 @@ case ActionTypes.UPDATE_SETTINGS: {
 ```
 
 Merge behaviour per slice:
-- `optionFields` (`userId`, `ui`, `widgetOverrides`, `demoMode`) → spread-merged into `state.options`, with nested objects (`ui.labels`, `widgetOverrides`) merged individually — same pattern as `SET_OPTIONS`
+- `optionFields` (`ui`, `widgetOverrides`) → spread-merged into `state.options`, with nested objects (`ui.labels`, `widgetOverrides`) merged individually — same pattern as `SET_OPTIONS`
 - `webrtcWidgetConfig` → spread-merged into `state.endpointSettings.webrtcWidgetConfig`
 - `settings` → spread-merged into `state.settings`, with `privacyNotice` merged individually
 - Slices absent from the payload are left untouched
