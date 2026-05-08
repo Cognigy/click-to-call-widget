@@ -100,6 +100,11 @@ type IUpdateableSettings = Omit<Partial<IOptions>, 'userId' | 'demoMode'> & {
 	settings?: Partial<ISettings>;
 };
 
+interface IWidgetInstance {
+	on: (event: string, handler: (...args: any[]) => void) => void;
+	updateSettings: (settings: IUpdateableSettings) => void;
+}
+
 interface IWebrtcContext {
 	organisationId: string;
 	projectId: string;
@@ -173,5 +178,5 @@ export interface UseDemoCallParams {
 	dispatch: (action: CallAction) => void;
 }
 
-export type { IWebrtcContext, ISipConnectivityInfo, IOptions, IWebrtcWidgetConfig, IDemoPageBackground, IDemoPage, TWebrtcWidgetPosition, IUpdateableSettings, ISettings };
+export type { IWebrtcContext, ISipConnectivityInfo, IOptions, IWebrtcWidgetConfig, IDemoPageBackground, IDemoPage, TWebrtcWidgetPosition, IUpdateableSettings, ISettings, IWidgetInstance };
 export { ActionTypes };

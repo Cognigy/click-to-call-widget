@@ -10,7 +10,7 @@ import { CallDurationDisplay } from "./CallDurationDisplay";
 import type { TranscriptMessage } from "./TranscriptDisplay";
 import { getLocalStore, shouldEnableEndCall, callReducer, initialCallState } from "../helpers";
 import { CallActionType, ActionTypes } from "../types";
-import type { IUpdateableSettings } from "../types";
+import type { IUpdateableSettings, IWidgetInstance } from "../types";
 import { useWebrtcContext, useWebrtcDispatch } from "./WebrtcContextProvider";
 import type { SipSession } from "../utils/SipSession";
 
@@ -20,7 +20,7 @@ import useSip from "../hooks/useSip";
 import useDemoCall from "../hooks/useDemoCall";
 import { VoiceBotWidgetContainer } from "./VoiceBotWidget.styles";
 
-const VoiceBotWidget = forwardRef((_, ref) => {
+const VoiceBotWidget = forwardRef<IWidgetInstance>((_, ref) => {
 	const config = useWebrtcContext();
 	const webrtcDispatch = useWebrtcDispatch();
 	const { startCall, userAgentRef } = useSip();
