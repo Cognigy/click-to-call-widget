@@ -86,6 +86,11 @@ interface IWidgetOverrides {
 	basePanelBackgroundColor?: string;
 }
 
+type IUpdateableSettings = Omit<Partial<IOptions>, 'userId' | 'demoMode'> & {
+	webrtcWidgetConfig?: Partial<Omit<IWebrtcWidgetConfig, 'active'>>;
+	settings?: Partial<ISettings>;
+};
+
 interface IOptions {
 	userId?: string;
 	ui?: IUi;
@@ -104,6 +109,7 @@ enum ActionTypes {
 	SET_OPTIONS = "SET_OPTIONS",
 	SET_LABELS = "SET_LABELS",
 	SET_USER_ID = "SET_USER_ID",
+	UPDATE_SETTINGS = "UPDATE_SETTINGS",
 }
 
 export type TExtendedRTCSession = Omit<RTCSession, 'sendInfo'> & {
@@ -164,5 +170,5 @@ export interface UseDemoCallParams {
 	dispatch: (action: CallAction) => void;
 }
 
-export type { IWebrtcContext, ISipConnectivityInfo, IOptions, IWebrtcWidgetConfig, IDemoPageBackground, IDemoPage, TWebrtcWidgetPosition };
+export type { IWebrtcContext, ISipConnectivityInfo, IOptions, IWebrtcWidgetConfig, IDemoPageBackground, IDemoPage, TWebrtcWidgetPosition, IUpdateableSettings, ISettings };
 export { ActionTypes };
