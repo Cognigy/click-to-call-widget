@@ -6,7 +6,7 @@ import { getLocalStore, randomId, setLocalStore } from "../helpers";
 import { COGNIGY_WEBRTC_OPTIONS } from "../constants/constants";
 
 // Define the initial state
-const initialState: IWebrtcContext = {
+export const initialState: IWebrtcContext = {
 	organisationId: "",
 	projectId: "",
 	endpointSettings: {
@@ -64,7 +64,7 @@ const initialState: IWebrtcContext = {
 export const WebrtcContext = createContext(initialState);
 
 // Define the reducer function
-function webrtcReducer(state: any, action: any) {
+export function webrtcReducer(state: any, action: any) {
 	switch (action.type) {
 		case ActionTypes.SET_DATA: {
 			const newState = {
