@@ -5,7 +5,7 @@ import { DemoPageBackground } from "./DemoPageBackground";
 import VoiceBotWidget from "./VoiceBotWidget";
 import type { IOptions, IWidgetInstance } from "../types/index.ts";
 
-const App = ({ token, options, mainRef: ref }: { token: string; options: IOptions, mainRef: (ref: IWidgetInstance) => void }) => {
+const App = ({ token, options, mainRef: ref }: { token: string; options: IOptions, mainRef: (ref: IWidgetInstance | null) => void }) => {
 	useEffect(() => {
 		const font = document.createElement("link");
 		font.href =

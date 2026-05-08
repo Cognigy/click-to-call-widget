@@ -40,8 +40,8 @@ const initWebRTCWidget = async (
 	let webrtcWidgetRef: IWidgetInstance | null = null;
 
 	setTimeout(async() => {
-		render(<App mainRef={(ref: IWidgetInstance) => {
-			webrtcWidgetRef = ref;
+		render(<App mainRef={(ref: IWidgetInstance | null) => {
+			if (ref) webrtcWidgetRef = ref;
 		}} token={token} options={newOptions} />, webrtcWidget);
 		while (!webrtcWidgetRef) {
 			await new Promise(resolve => setTimeout(resolve, 500));
