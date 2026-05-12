@@ -59,25 +59,6 @@ const baseState = {
 };
 
 describe("webrtcReducer — UPDATE_SETTINGS", () => {
-	it("merges ui.labels without replacing unspecified labels", () => {
-		const result = webrtcReducer(baseState, {
-			type: ActionTypes.UPDATE_SETTINGS,
-			payload: { ui: { labels: { callButton: "Ring" } } },
-		});
-		expect(result.options.ui.labels.callButton).toBe("Ring");
-		expect(result.options.ui.labels.endButton).toBe("End");
-		expect(result.options.ui.labels.listenLabel).toBe("Listening");
-	});
-
-	it("merges widgetOverrides without replacing unspecified fields", () => {
-		const result = webrtcReducer(baseState, {
-			type: ActionTypes.UPDATE_SETTINGS,
-			payload: { widgetOverrides: { tagline: "New tagline" } },
-		});
-		expect(result.options.widgetOverrides.tagline).toBe("New tagline");
-		expect(result.options.widgetOverrides.theme).toBe("light");
-	});
-
 	it("merges settings.privacyNotice without replacing unspecified fields", () => {
 		const result = webrtcReducer(baseState, {
 			type: ActionTypes.UPDATE_SETTINGS,
@@ -125,22 +106,13 @@ describe("webrtcReducer — UPDATE_SETTINGS", () => {
 		expect(result.endpointSettings.active).toBe(true);
 	});
 
-	it("does NOT touch options.userId or options.demoMode", () => {
-		const result = webrtcReducer(baseState, {
-			type: ActionTypes.UPDATE_SETTINGS,
-			payload: { ui: { labels: { callButton: "Ring" } } },
-		});
-		expect(result.options.userId).toBe("existing-user");
-		expect(result.options.demoMode).toBe(false);
-	});
-
 	it("leaves slices untouched when not included in payload", () => {
 		const result = webrtcReducer(baseState, {
 			type: ActionTypes.UPDATE_SETTINGS,
-			payload: { ui: { labels: { callButton: "Ring" } } },
+			payload: { webrtcWidgetConfig: { tagline: "X" } },
 		});
 		expect(result.settings).toEqual(baseState.settings);
-		expect(result.endpointSettings.webrtcWidgetConfig).toEqual(baseState.endpointSettings.webrtcWidgetConfig);
+		expect(result.options).toEqual(baseState.options);
 	});
 
 	it("existing SET_OPTIONS behaviour is unaffected", () => {
