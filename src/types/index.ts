@@ -93,7 +93,7 @@ interface IOptions {
 	demoMode?: boolean;
 }
 
-type IUpdateableSettings = Omit<Partial<IOptions>, 'userId' | 'demoMode'> & {
+type IUpdateableSettings = {
 	webrtcWidgetConfig?: Partial<Omit<IWebrtcWidgetConfig, 'active'>>;
 	settings?: Partial<ISettings>;
 };

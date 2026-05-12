@@ -134,28 +134,9 @@ export function webrtcReducer(state: any, action: any) {
 				},
 			};
 		case ActionTypes.UPDATE_SETTINGS: {
-			const { webrtcWidgetConfig, settings, ...optionFields } = action.payload;
+			const { webrtcWidgetConfig, settings } = action.payload;
 			return {
 				...state,
-				options: {
-					...state.options,
-					...(optionFields.ui && {
-						ui: {
-							...state.options?.ui,
-							...optionFields.ui,
-							labels: {
-								...state.options?.ui?.labels,
-								...optionFields.ui?.labels,
-							},
-						},
-					}),
-					...(optionFields.widgetOverrides && {
-						widgetOverrides: {
-							...state.options?.widgetOverrides,
-							...optionFields.widgetOverrides,
-						},
-					}),
-				},
 				...(settings && {
 					settings: {
 						...state.settings,
