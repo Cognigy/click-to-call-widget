@@ -1,0 +1,48 @@
+{
+  "organisationId": "000000000000000000000000",
+  "projectId": "111111111111111111111111",
+  "endpointSettings": {
+    "snapshotId": null,
+    "endpointUrlToken": "example-endpoint-token",
+    "endpointName": "Example Endpoint",
+    "channel": "voiceGateway2",
+    "localeReferenceId": "222222222222222222222222",
+    "collectAnalytics": true,
+    "active": true,
+    "version": "2026.9.0",
+    "sipConnectivityInfo": {
+      "applicationSid": "example-application-sid",
+      "clientSid": "example-client-sid",
+      "password": "example-password",
+      "realm": "sip.example.com",
+      "username": "example-user",
+      "wsUri": "wss://sip.example.com:8443"
+    },
+    "webrtcWidgetConfig": {
+      "active": true,
+      "demoPage": {
+        "background": {
+          "color": "#FFFFFF",
+          "mode": "color"
+        },
+        "position": "centered"
+      },
+      "label": "Click to Call",
+      "theme": "DARK_MODE",
+      "transcription": {
+        "backgroundMode": "transparent",
+        "enabled": true
+      }
+    }
+  },
+  "settings": {
+    "privacyNotice": {
+      "enabled": false,
+      "text": "Please accept our privacy policy to start your chat.\n\nLorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.",
+      "cancelButtonText": "Cancel",
+      "submitButtonText": "Submit",
+      "urlText": "",
+      "url": ""
+    }
+  }
+}

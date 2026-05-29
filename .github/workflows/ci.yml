@@ -23,6 +23,8 @@ jobs:
           node-version: 24.x
           cache: npm
       - run: npm ci
+      - name: Set up mock config for CI
+        run: cp src/mocks/mock.example.json src/mocks/mock.json
       - run: npm run lint
       - run: npm run build
       - run: npm test
