@@ -36,3 +36,6 @@ scripts/
 
 # Real credentials (use mock.example.json as template)
 src/mocks/mock.json
+
+build-demo.sh
+entrypoint.sh
