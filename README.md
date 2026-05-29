@@ -267,6 +267,45 @@ window.initWebRTCWidget(token, options).then((widget) => {
 - The payload is automatically structured as: `{ text: "your message", data: { your: "json" } }`
 - Transcription events are parsed and emitted separately for easier handling
 
+### Updating Settings at Runtime
+
+The widget instance exposes an `updateSettings` method that lets you change the widget's appearance and behaviour after initialization, without re-initializing it. This is useful for live previews or reacting to user actions.
+
+```javascript
+window.initWebRTCWidget(token, options).then((widget) => {
+  widget.updateSettings({
+    webrtcWidgetConfig: {
+      label: "Support",
+      tagline: "We're here to help",
+      theme: "AI_PURPLE",
+      transcription: { enabled: true, backgroundMode: "transparent" },
+      demoPage: {
+        position: "centered",
+        background: { mode: "color", color: "#FFFFFF" },
+      },
+    },
+    settings: {
+      transcription: { enabled: true },
+      privacyNotice: { text: "Updated privacy notice" },
+    },
+  });
+});
+```
+
+#### Accepted Fields
+
+`updateSettings(settings)` accepts an object with two optional top-level keys:
+
+- **`webrtcWidgetConfig`** — widget appearance and config. Supported fields: `label`, `tagline`, `theme`, `avatarLogoUrl`, `transcription`, `basePanelBackgroundColor`, `demoPage`. The `active` flag is intentionally **not** updateable.
+- **`settings`** — runtime settings. Supported fields: `privacyNotice` and `transcription`.
+
+#### Merge Behaviour
+
+- Only the keys you provide are changed; everything else is left untouched.
+- `webrtcWidgetConfig` and top-level `settings` keys are shallow-merged into the existing state.
+- `settings.privacyNotice` is deep-merged, so you can update a single field (e.g. just `text`) without resetting the rest of the privacy notice.
+- Any other fields (such as `userId` or `demoMode`) are ignored — `updateSettings` only affects `webrtcWidgetConfig` and `settings`.
+
 ### UI Customization
 
 The widget allows customization of UI labels through the initialization options. You can override the default labels by passing a `ui` object in the options:
