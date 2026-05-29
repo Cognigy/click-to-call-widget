@@ -8,6 +8,10 @@ permissions:
   contents: write   # push tag + create GitHub Release
   id-token: write   # npm Trusted Publishing (OIDC)
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -41,7 +45,13 @@ jobs:
         run: npm version "${{ steps.version.outputs.next }}" --no-git-tag-version --allow-same-version
 
       - name: Publish to npm (Trusted Publishing / OIDC)
-        run: npm publish --access public
+        run: |
+          VERSION="${{ steps.version.outputs.next }}"
+          if npm view "@cognigy/click-to-call-widget@${VERSION}" version >/dev/null 2>&1; then
+            echo "Version ${VERSION} already published to npm — skipping publish."
+          else
+            npm publish --provenance --access public
+          fi
 
       - name: Create and push tag
         run: |
