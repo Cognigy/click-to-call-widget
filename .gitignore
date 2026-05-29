@@ -39,3 +39,5 @@ src/mocks/mock.json
 
 build-demo.sh
 entrypoint.sh
+
+docs/superpowers/
