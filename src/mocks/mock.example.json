@@ -1,0 +1,56 @@
+{
+	"organisationId": "000000000000000000000000",
+	"projectId": "000000000000000000000000",
+	"endpointSettings": {
+		"snapshotId": null,
+		"endpointUrlToken": "example-endpoint-url-token",
+		"endpointName": "Example Click-to-Call Endpoint",
+		"channel": "voicegateway2",
+		"localeReferenceId": "000000000000000000000000",
+		"collectAnalytics": false,
+		"active": true,
+		"version": "1.0.0",
+		"sipConnectivityInfo": {
+			"username": "example-user",
+			"applicationSid": "00000000-0000-0000-0000-000000000000",
+			"password": "example-password",
+			"wsUri": "wss://sip.example.invalid:8443",
+			"realm": "sip.example.invalid"
+		},
+		"webrtcWidgetConfig": {
+			"label": "Example Voice Agent",
+			"tagline": "Tap to talk",
+			"active": true,
+			"theme": "DARK_MODE",
+			"avatarLogoUrl": "https://example.invalid/avatar.png",
+			"transcription": {
+				"enabled": true,
+				"backgroundMode": "transparent",
+				"backgroundColor": ""
+			}
+		}
+	},
+	"settings": {
+		"privacyNotice": {
+			"enabled": false,
+			"text": "This call may be recorded and transcribed.",
+			"cancelButtonText": "Cancel",
+			"submitButtonText": "Continue",
+			"urlText": "Privacy policy",
+			"url": "https://example.invalid/privacy"
+		},
+		"transcription": {
+			"enabled": true
+		}
+	},
+	"options": {
+		"userId": "",
+		"ui": {
+			"labels": {
+				"callButton": "Start a Call",
+				"endButton": "End a Call",
+				"listenLabel": "Listening"
+			}
+		}
+	}
+}
