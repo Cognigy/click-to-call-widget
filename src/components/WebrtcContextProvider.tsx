@@ -178,17 +178,26 @@ export const WebrtcContextProvider = ({
 	const [state, dispatch] = useReducer(webrtcReducer, initialState);
 
 	useEffect(() => {
-		fetch(urlWithToken)
+		// The config fetch outlives a fast unmount (destroy + re-init, or an
+		// embedding page tearing the widget down). Without aborting it, the
+		// late `dispatch` lands on a component that is no longer mounted.
+		const controller = new AbortController();
+
+		fetch(urlWithToken, { signal: controller.signal })
 			.then(async (response) => {
 				const data = await response.json();
+				if (controller.signal.aborted) return;
 				dispatch({
 					type: ActionTypes.SET_DATA,
 					payload: data,
 				});
 			})
 			.catch((e) => {
+				if (e?.name === "AbortError") return;
 				console.error("Failed to fetch WebRTC config:", e);
 			});
+
+		return () => controller.abort();
 	}, [urlWithToken]);
 
 	useEffect(() => {
