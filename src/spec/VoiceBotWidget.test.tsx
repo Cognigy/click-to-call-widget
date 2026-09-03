@@ -4,7 +4,7 @@ import VoiceBotWidget from "../components/VoiceBotWidget";
 import { WebrtcContextProvider } from "../components/WebrtcContextProvider";
 import * as WebrtcContext from "../components/WebrtcContextProvider";
 import * as HelperFunctions from "../helpers";
-import mockDataJson from "../mocks/mock.json";
+import mockDataJson from "../mocks/mock.example.json";
 import type { IWebrtcContext } from "../types";
 
 const mockData = mockDataJson as unknown as IWebrtcContext;

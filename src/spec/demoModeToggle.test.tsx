@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/preact";
 import VoiceBotWidget from "../components/VoiceBotWidget";
 import * as WebrtcContext from "../components/WebrtcContextProvider";
 import * as HelperFunctions from "../helpers";
-import mockDataJson from "../mocks/mock.json";
+import mockDataJson from "../mocks/mock.example.json";
 import type { IWebrtcContext } from "../types";
 
 const mockStartCall = vi.fn();
