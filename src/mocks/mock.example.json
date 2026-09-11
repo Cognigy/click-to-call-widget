@@ -27,6 +27,7 @@
         },
         "position": "centered"
       },
+      "avatarLogoUrl": "https://example.invalid/avatar.png",
       "label": "Click to Call",
       "theme": "DARK_MODE",
       "transcription": {
