@@ -26,5 +26,7 @@ jobs:
       - name: Set up mock config for CI
         run: cp src/mocks/mock.example.json src/mocks/mock.json
       - run: npm run lint
+      - name: Test next-version helper
+        run: bash .github/compute-next-version.test.sh
       - run: npm run build
       - run: npm test

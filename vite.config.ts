@@ -20,9 +20,14 @@ export default defineConfig(({ mode }) => {
 						algorithms: ["gzip", "brotliCompress"],
 						threshold: 1024,
 					}),
-					analyzer(),
 				]
 				: []),
+			// vite-bundle-analyzer serves its report over HTTP and keeps the process
+			// alive, so it must never be part of a plain `vite build`: the bundle is
+			// written but the command never exits, and CI hangs until the job timeout
+			// (PR #2 run 26627430248 was cancelled at 6h with `npm test` skipped).
+			// Opt in explicitly with `npm run build:analyze`.
+			...(process.env.ANALYZE ? [analyzer()] : []),
 		],
 		define: {
 			"process.env": {

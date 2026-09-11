@@ -12,6 +12,7 @@
     "dev": "vite --mode development",
     "build": "tsc -b && vite build",
     "build-dev": "tsc -b && vite build --mode development",
+    "build:analyze": "ANALYZE=1 npm run build",
     "preview": "vite preview",
     "lint": "biome lint",
     "lint:fix": "biome format src --write",
