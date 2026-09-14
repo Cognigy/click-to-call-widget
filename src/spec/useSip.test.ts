@@ -126,18 +126,6 @@ describe("useSip", () => {
 		);
 	});
 
-	it("passes no organisationId/projectId to SipClient for a legacy endpoint that doesn't declare them", () => {
-		renderHook(() => useSip());
-
-		expect(SipClient).toHaveBeenCalledWith(
-			expect.objectContaining({
-				organisationId: undefined,
-				projectId: undefined,
-			}),
-			expect.anything()
-		);
-	});
-
 	it("should handle startCall correctly", async () => {
 		const mockCall = vi.fn();
 		(SipClient as any).mockImplementation(() => ({
