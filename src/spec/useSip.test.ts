@@ -78,12 +78,64 @@ describe("useSip", () => {
 				fullUsername: "@test.com",
 				username: "testuser",
 				password: "testpass",
+				organisationId: undefined,
+				projectId: undefined,
+				endpointId: undefined,
 			},
 			{
 				wsUri: "wss://test.com",
 			}
 		);
 		expect(mockStart).toHaveBeenCalled();
+	});
+
+	it("passes declared organisationId/projectId/endpointId through to SipClient when known", () => {
+		(useWebrtcContext as any).mockReturnValue({
+			organisationId: "org-1",
+			projectId: "proj-1",
+			endpointSettings: {
+				endpointId: "endpoint-1",
+				sipConnectivityInfo: { ...mockConfig.endpointSettings.sipConnectivityInfo },
+			},
+		});
+
+		renderHook(() => useSip());
+
+		expect(SipClient).toHaveBeenCalledWith(
+			expect.objectContaining({
+				organisationId: "org-1",
+				projectId: "proj-1",
+				endpointId: "endpoint-1",
+			}),
+			expect.anything()
+		);
+	});
+
+	it("does not derive endpointId from sipConnectivityInfo.applicationSid for an old-style endpoint config", () => {
+		(useWebrtcContext as any).mockReturnValue({
+			organisationId: "org-1",
+			projectId: "proj-1",
+			endpointSettings: { sipConnectivityInfo: { ...mockConfig.endpointSettings.sipConnectivityInfo } },
+		});
+
+		renderHook(() => useSip());
+
+		expect(SipClient).toHaveBeenCalledWith(
+			expect.objectContaining({ endpointId: undefined }),
+			expect.anything()
+		);
+	});
+
+	it("passes no organisationId/projectId to SipClient for a legacy endpoint that doesn't declare them", () => {
+		renderHook(() => useSip());
+
+		expect(SipClient).toHaveBeenCalledWith(
+			expect.objectContaining({
+				organisationId: undefined,
+				projectId: undefined,
+			}),
+			expect.anything()
+		);
 	});
 
 	it("should handle startCall correctly", async () => {
@@ -99,6 +151,55 @@ describe("useSip", () => {
 		result.current.startCall();
 
 		// Advance timers
+		await vi.advanceTimersByTimeAsync(1200);
+
+		expect(mockCall).toHaveBeenCalledWith("app-123");
+	});
+
+	it("dials the bare endpointId (no app- prefix) once organisationId/projectId/endpointId are all declared", async () => {
+		(useWebrtcContext as any).mockReturnValue({
+			organisationId: "org-1",
+			projectId: "proj-1",
+			endpointSettings: {
+				endpointId: "endpoint-1",
+				sipConnectivityInfo: { ...mockConfig.endpointSettings.sipConnectivityInfo },
+			},
+		});
+
+		const mockCall = vi.fn();
+		(SipClient as any).mockImplementation(() => ({
+			start: vi.fn(),
+			on: vi.fn(),
+			stop: vi.fn(),
+			call: mockCall,
+		}));
+
+		const { result } = renderHook(() => useSip());
+		result.current.startCall();
+
+		await vi.advanceTimersByTimeAsync(1200);
+
+		expect(mockCall).toHaveBeenCalledWith("endpoint-1");
+	});
+
+	it("falls back to dialing app-<applicationSid> when endpointId is missing even if organisationId/projectId are known", async () => {
+		(useWebrtcContext as any).mockReturnValue({
+			organisationId: "org-1",
+			projectId: "proj-1",
+			endpointSettings: { sipConnectivityInfo: { ...mockConfig.endpointSettings.sipConnectivityInfo } },
+		});
+
+		const mockCall = vi.fn();
+		(SipClient as any).mockImplementation(() => ({
+			start: vi.fn(),
+			on: vi.fn(),
+			stop: vi.fn(),
+			call: mockCall,
+		}));
+
+		const { result } = renderHook(() => useSip());
+		result.current.startCall();
+
 		await vi.advanceTimersByTimeAsync(1200);
 
 		expect(mockCall).toHaveBeenCalledWith("app-123");

@@ -51,6 +51,8 @@ interface IEndpointSettings {
 	version: string;
 	sipConnectivityInfo: ISipConnectivityInfo;
 	webrtcWidgetConfig: IWebrtcWidgetConfig;
+	/** Absent from older endpoint configs. */
+	endpointId?: string;
 }
 
 interface ISettingsTranscription {

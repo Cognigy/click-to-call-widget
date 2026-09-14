@@ -126,6 +126,9 @@ export default function useSip() {
 					fullUsername: `${config?.options?.userId ?? ''}@${config?.endpointSettings?.sipConnectivityInfo?.realm}`,
 					password: config?.endpointSettings?.sipConnectivityInfo?.password,
 					username: config?.endpointSettings?.sipConnectivityInfo?.username,
+					organisationId: config?.organisationId,
+					projectId: config?.projectId,
+					endpointId: config?.endpointSettings?.endpointId,
 				},
 				{
 					wsUri,
@@ -168,9 +171,17 @@ export default function useSip() {
 
 		ringTimeoutRef.current = setTimeout(() => {
 			stopRingingAudio();
-			ua.call(
-				`app-${config?.endpointSettings?.sipConnectivityInfo?.applicationSid}`
-			);
+			// The dialed user part is no longer parsed for routing once identity is
+			// declared via headers — it's forwarded as-is for CDR/logging purposes
+			// only, so a bare endpointId is enough there; old-style configs (no
+			// endpointId) keep dialing app-<applicationSid> as before.
+			const { organisationId, projectId, endpointSettings } = config ?? {};
+			const endpointId = endpointSettings?.endpointId;
+			const target =
+				organisationId && projectId && endpointId
+					? endpointId
+					: `app-${endpointSettings?.sipConnectivityInfo?.applicationSid}`;
+			ua.call(target);
 		}, 1200);
 
 		return true;
