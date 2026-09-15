@@ -13,15 +13,30 @@ interface Client {
 	fullUsername: string;
 	password: string;
 	username: string;
+	/** Present only for runtime (org/project/endpoint-backed) endpoints — absent
+	 *  for legacy ones, which keeps the widget working against old endpoint
+	 *  configs without any extra headers being sent. */
+	organisationId?: string;
+	projectId?: string;
+	endpointId?: string;
 }
 
 export class SipClient extends events.EventEmitter {
 	private _ua: IUA;
 	private _pcConfig?: RTCConfiguration;
+	private _identityHeaders: string[];
 
 	constructor(client: Client, settings: ClientSettings) {
 		super();
 		this._pcConfig = settings.pcConfig;
+		this._identityHeaders =
+			client.organisationId && client.projectId
+				? [
+						`X-Organisation-Id: ${client.organisationId}`,
+						`X-Project-Id: ${client.projectId}`,
+						...(client.endpointId ? [`X-Endpoint-Id: ${client.endpointId}`] : []),
+					]
+				: [];
 
 		console.log({ client, settings }, "creating a sip client");
 
@@ -72,6 +87,7 @@ export class SipClient extends events.EventEmitter {
 			},
 			mediaConstraints: { audio: true, video: false },
 			pcConfig: this._pcConfig,
+			extraHeaders: this._identityHeaders,
 		});
 	}
 
