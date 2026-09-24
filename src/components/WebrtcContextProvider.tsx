@@ -1,12 +1,13 @@
 import { createContext } from "preact";
 import { useContext, useEffect, useReducer } from "preact/hooks";
+import type { Dispatch } from "preact/hooks";
 
 import { ActionTypes, type IOptions, type IWebrtcContext } from "../types";
 import { getLocalStore, randomId, setLocalStore } from "../helpers";
 import { COGNIGY_WEBRTC_OPTIONS } from "../constants/constants";
 
 // Define the initial state
-const initialState: IWebrtcContext = {
+export const initialState: IWebrtcContext = {
 	organisationId: "",
 	projectId: "",
 	endpointSettings: {
@@ -62,9 +63,11 @@ const initialState: IWebrtcContext = {
 
 // Create the context
 export const WebrtcContext = createContext(initialState);
+export const WebrtcDispatchContext = createContext<Dispatch<any>>(() => {});
+export const useWebrtcDispatch = () => useContext(WebrtcDispatchContext);
 
 // Define the reducer function
-function webrtcReducer(state: any, action: any) {
+export function webrtcReducer(state: any, action: any) {
 	switch (action.type) {
 		case ActionTypes.SET_DATA: {
 			const newState = {
@@ -130,6 +133,33 @@ function webrtcReducer(state: any, action: any) {
 					} },
 				},
 			};
+		case ActionTypes.UPDATE_SETTINGS: {
+			const { webrtcWidgetConfig, settings } = action.payload;
+			return {
+				...state,
+				...(settings && {
+					settings: {
+						...state.settings,
+						...settings,
+						...(settings.privacyNotice && {
+							privacyNotice: {
+								...state.settings?.privacyNotice,
+								...settings.privacyNotice,
+							},
+						}),
+					},
+				}),
+				...(webrtcWidgetConfig && {
+					endpointSettings: {
+						...state.endpointSettings,
+						webrtcWidgetConfig: {
+							...state.endpointSettings?.webrtcWidgetConfig,
+							...webrtcWidgetConfig,
+						},
+					},
+				}),
+			};
+		}
 		default:
 			return state;
 	}
@@ -171,7 +201,11 @@ export const WebrtcContextProvider = ({
 	}, [options]);
 
 	return (
-		<WebrtcContext.Provider value={state}>{children}</WebrtcContext.Provider>
+		<WebrtcContext.Provider value={state}>
+			<WebrtcDispatchContext.Provider value={dispatch}>
+				{children}
+			</WebrtcDispatchContext.Provider>
+		</WebrtcContext.Provider>
 	);
 };
 
