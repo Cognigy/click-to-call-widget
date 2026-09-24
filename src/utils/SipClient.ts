@@ -13,6 +13,8 @@ interface Client {
 	fullUsername: string;
 	password: string;
 	username: string;
+	/** Caller identity for the From URI of runtime endpoints, which have no realm. */
+	userId?: string;
 	/** Present only for runtime (org/project/endpoint-backed) endpoints — absent
 	 *  for legacy ones, which keeps the widget working against old endpoint
 	 *  configs without any extra headers being sent. */
@@ -48,7 +50,7 @@ export class SipClient extends events.EventEmitter {
 		const isRuntime = !!(client.organisationId && client.projectId && client.endpointId);
 		const ua = isRuntime
 			? {
-					uri: `sip:anonymous@${new URL(settings.wsUri).hostname}`,
+					uri: `sip:${client.userId || "anonymous"}@${new URL(settings.wsUri).hostname}`,
 					sockets: [socket],
 					register: false,
 				}
