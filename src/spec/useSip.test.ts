@@ -78,6 +78,7 @@ describe("useSip", () => {
 				fullUsername: "@test.com",
 				username: "testuser",
 				password: "testpass",
+				userId: undefined,
 				organisationId: undefined,
 				projectId: undefined,
 				endpointId: undefined,

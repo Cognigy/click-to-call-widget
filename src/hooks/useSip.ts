@@ -126,6 +126,7 @@ export default function useSip() {
 					fullUsername: `${config?.options?.userId ?? ''}@${config?.endpointSettings?.sipConnectivityInfo?.realm}`,
 					password: config?.endpointSettings?.sipConnectivityInfo?.password,
 					username: config?.endpointSettings?.sipConnectivityInfo?.username,
+					userId: config?.options?.userId,
 					organisationId: config?.organisationId,
 					projectId: config?.projectId,
 					endpointId: config?.endpointSettings?.endpointId,

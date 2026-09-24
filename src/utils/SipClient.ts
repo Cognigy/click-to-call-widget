@@ -13,6 +13,8 @@ interface Client {
 	fullUsername: string;
 	password: string;
 	username: string;
+	/** Caller identity for the From URI of runtime endpoints, which have no realm. */
+	userId?: string;
 	/** Present only for runtime (org/project/endpoint-backed) endpoints — absent
 	 *  for legacy ones, which keeps the widget working against old endpoint
 	 *  configs without any extra headers being sent. */
@@ -41,15 +43,24 @@ export class SipClient extends events.EventEmitter {
 		console.log({ client, settings }, "creating a sip client");
 
 		const socket = new WebSocketInterface(settings.wsUri);
-		const uri = `sip:${client.fullUsername}`;
 
-		const ua = {
-			uri,
-			password: client.password,
-			authorization_user: client.username,
-			sockets: [socket],
-			register: true,
-		};
+		// Runtime endpoints have no realm or credentials; the SBC admits them by the
+		// declared identity headers only, and nothing needs to reach this UA, so skip
+		// REGISTER. The host just has to parse — the resolver ignores it.
+		const isRuntime = !!(client.organisationId && client.projectId && client.endpointId);
+		const ua = isRuntime
+			? {
+					uri: `sip:${client.userId || "anonymous"}@${new URL(settings.wsUri).hostname}`,
+					sockets: [socket],
+					register: false,
+				}
+			: {
+					uri: `sip:${client.fullUsername}`,
+					password: client.password,
+					authorization_user: client.username,
+					sockets: [socket],
+					register: true,
+				};
 
 		this._ua = new UA(ua);
 
