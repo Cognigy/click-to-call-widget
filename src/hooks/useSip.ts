@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { SipClient } from "../utils/SipClient";
 import * as sounds from "../constants/sounds";
 import type { SipSession } from "../utils/SipSession";
@@ -15,6 +15,20 @@ export default function useSip() {
 	const isRingAudioPlayingRef = useRef(false);
 	const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const ringingAudioRef = useRef<HTMLAudioElement | null>(null);
+
+	// Listeners registered by the embedder through the widget's public `on()`.
+	// Kept here, not only on the client, because the client does not exist until
+	// the endpoint config has loaded and is replaced whenever the SIP settings
+	// change -- a listener attached to one client only would be silently lost.
+	const externalListenersRef = useRef<Array<[string, (...args: any[]) => void]>>([]);
+
+	const addExternalListener = useCallback(
+		(event: string, handler: (...args: any[]) => void) => {
+			externalListenersRef.current.push([event, handler]);
+			sipclient.current?.on(event, handler);
+		},
+		[]
+	);
 
 	useEffect(() => {
 		// Initialize the ringing audio element after mount to keep render pure
@@ -113,9 +127,19 @@ export default function useSip() {
 	};
 
 
+	// Only the fields the SIP client is built from. Depending on the whole
+	// context object recreated the client -- and ran the cleanup's `ua.stop()`,
+	// which terminates any active call -- on every `updateSettings()`, even a
+	// label change.
+	const sipInfo = config?.endpointSettings?.sipConnectivityInfo;
+	const wsUri = sipInfo?.wsUri;
+	const realm = sipInfo?.realm;
+	const sipUsername = sipInfo?.username;
+	const sipPassword = sipInfo?.password;
+	const userId = config?.options?.userId;
+
 	useEffect(() => {
 		try {
-			const wsUri = config?.endpointSettings?.sipConnectivityInfo?.wsUri;
 			if (!wsUri) {
 				console.warn('[useSip] No wsUri configured, skipping SIP client initialization');
 				return;
@@ -123,15 +147,18 @@ export default function useSip() {
 
 			const ua = new SipClient(
 				{
-					fullUsername: `${config?.options?.userId ?? ''}@${config?.endpointSettings?.sipConnectivityInfo?.realm}`,
-					password: config?.endpointSettings?.sipConnectivityInfo?.password,
-					username: config?.endpointSettings?.sipConnectivityInfo?.username,
+					fullUsername: `${userId ?? ''}@${realm}`,
+					password: sipPassword,
+					username: sipUsername,
 				},
 				{
 					wsUri,
 				}
 			);
 			sipclient.current = ua;
+			for (const [event, handler] of externalListenersRef.current) {
+				ua.on(event, handler);
+			}
 			return () => {
 				const ua = sipclient.current;
 				ua?.stop();
@@ -144,8 +171,7 @@ export default function useSip() {
 		} catch (error) {
 			console.error('[useSip] Failed to initialize SIP client:', error);
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [config]);
+	}, [wsUri, realm, sipUsername, sipPassword, userId]);
 
 
 	const placeCall = () => {
@@ -192,5 +218,6 @@ export default function useSip() {
 		startCall: placeCall,
 		endCall: stopCall,
 		userAgentRef: sipclient,
+		addExternalListener,
 	};
 }
