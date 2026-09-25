@@ -7,10 +7,10 @@ import type { IOptions, IWidgetInstance } from "./types/index.ts";
 const ASYNC_DELAY = process.env.NODE_ENV === "development" ? 500 : 0;
 
 /**
- * Upper bound on how long `initWebRTCWidget()` waits for the widget to report
- * itself mounted before rejecting. Generous enough to cover a slow endpoint
- * config fetch on a poor connection, short enough that an embedding page is
- * never left waiting indefinitely.
+ * Upper bound on how long `initWebRTCWidget()` waits for the widget to become
+ * ready (mounted and endpoint config loaded) before rejecting. Generous enough
+ * to cover a slow config fetch on a poor connection, short enough that an
+ * embedding page is never left waiting indefinitely.
  */
 const INIT_TIMEOUT_MS = 15_000;
 
@@ -29,15 +29,21 @@ declare global {
 }
 
 /**
- * Unmounts and removes one container, and never throws.
- *
- * Unmounting a half-committed Preact tree can itself throw. If that were
- * allowed to propagate, the container would stay in the DOM *and* stay
- * referenced by `currentWidgetContainer`, so every later `initWebRTCWidget()`
- * call would re-enter the same broken tree and fail again -- which is why a
- * bounded retry loop could never recover and only a page reload helped.
+ * Takes a container out of the page and forgets it, synchronously, and never
+ * throws. The next `initWebRTCWidget()` must always start clean -- a container
+ * left mounted *and* referenced by `currentWidgetContainer` is what made every
+ * later init re-enter the same broken tree, so a bounded retry loop could
+ * never recover and only a page reload helped.
  */
-const teardownContainer = (container: HTMLElement) => {
+const detachContainer = (container: HTMLElement) => {
+	container.remove();
+	if (currentWidgetContainer === container) {
+		currentWidgetContainer = null;
+	}
+};
+
+/** Unmounts a container's Preact tree. Unmounting a half-committed tree can itself throw. */
+const unmountQuietly = (container: HTMLElement) => {
 	try {
 		render(null, container);
 	} catch (error) {
@@ -45,21 +51,45 @@ const teardownContainer = (container: HTMLElement) => {
 			"[WebRTCWidget] failed to unmount cleanly; discarding the container anyway",
 			error
 		);
-	} finally {
-		container.remove();
-		if (currentWidgetContainer === container) {
-			currentWidgetContainer = null;
-		}
 	}
 };
 
+const teardownContainer = (container: HTMLElement) => {
+	unmountQuietly(container);
+	detachContainer(container);
+};
+
+/**
+ * Settles the `initWebRTCWidget()` call that is still waiting, if any. A newer
+ * init (or a destroy) must not leave the older one's mount timer running: it
+ * would render into the discarded container and resolve with a widget nothing
+ * can ever tear down.
+ */
+let abortPendingInit: ((error: Error) => void) | null = null;
+
 const destroyWebRTCWidget = () => {
+	if (abortPendingInit) {
+		const error = new Error(
+			"[WebRTCWidget] initWebRTCWidget() was superseded by destroyWebRTCWidget() or a newer initWebRTCWidget() call"
+		);
+		error.name = "AbortError";
+		abortPendingInit(error);
+	}
 	if (currentWidgetContainer) {
 		teardownContainer(currentWidgetContainer);
 	}
 };
 
-const initWebRTCWidget = (
+/** Rethrows outside the widget so the host page's window.onerror / Sentry sees it. */
+const reportUncaught = (error: Error) => {
+	setTimeout(() => {
+		throw error;
+	});
+};
+
+// `async` so that nothing -- not even `document.body` being missing when the
+// script runs in <head> -- can throw synchronously: every failure is a rejection.
+const initWebRTCWidget = async (
 	token: string,
 	options?: IOptions,
 	callback?: (webrtcWidget: IWidgetInstance) => void
@@ -83,6 +113,7 @@ const initWebRTCWidget = (
 							mainRef={(instance: IWidgetInstance | null) => {
 								if (instance) succeed(instance);
 							}}
+							onError={fail}
 							token={token}
 							options={newOptions}
 						/>
@@ -97,20 +128,26 @@ const initWebRTCWidget = (
 		const initTimeoutTimer = setTimeout(() => {
 			fail(
 				new Error(
-					`[WebRTCWidget] widget did not mount within ${INIT_TIMEOUT_MS}ms`
+					`[WebRTCWidget] widget did not become ready within ${INIT_TIMEOUT_MS}ms`
 				)
 			);
 		}, INIT_TIMEOUT_MS);
 
-		const clearTimers = () => {
+		const abortThis = (error: Error) => fail(error);
+		abortPendingInit = abortThis;
+
+		const finish = () => {
+			settled = true;
 			clearTimeout(mountDelayTimer);
 			clearTimeout(initTimeoutTimer);
+			if (abortPendingInit === abortThis) {
+				abortPendingInit = null;
+			}
 		};
 
 		function succeed(instance: IWidgetInstance) {
 			if (settled) return;
-			settled = true;
-			clearTimers();
+			finish();
 
 			// A throwing callback is the embedder's bug, not ours -- report it but
 			// still resolve, so one bad listener cannot make init look like a failure.
@@ -125,11 +162,21 @@ const initWebRTCWidget = (
 		}
 
 		function fail(error: Error) {
-			if (settled) return;
-			settled = true;
-			clearTimers();
-			// Leave nothing mounted behind: the next init() must start clean.
-			teardownContainer(container);
+			if (settled) {
+				// The widget broke after init resolved. There is no promise left to
+				// reject, and the error boundary has already stopped rendering, so
+				// without this the widget would just vanish without a trace
+				// (production builds also drop console output).
+				reportUncaught(error);
+				return;
+			}
+			finish();
+			// Leave nothing behind for the next init() -- but unmount on a later
+			// tick: `fail` can be called from inside a render (the error boundary's
+			// componentDidCatch), and re-entering render() on the root that is
+			// still being rendered is not safe.
+			detachContainer(container);
+			setTimeout(() => unmountQuietly(container));
 			reject(error);
 		}
 	});

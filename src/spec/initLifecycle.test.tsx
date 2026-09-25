@@ -37,6 +37,14 @@ const throwsOnMount = (message = "boom") => {
 	});
 };
 
+/** Mounts, but reports that the endpoint config could not be loaded. */
+const configFailsToLoad = (message = "HTTP 404") => {
+	mockedApp.mockImplementation(({ onError }: any) => {
+		onError?.(new Error(message));
+		return null;
+	});
+};
+
 /** Renders fine but never fulfils `mainRef` (the `!active` early-return case). */
 const neverFulfilsRef = () => {
 	mockedApp.mockImplementation(() => null);
@@ -89,7 +97,7 @@ describe("initWebRTCWidget lifecycle", () => {
 	it("rejects rather than hanging when the widget never fulfils mainRef", async () => {
 		neverFulfilsRef();
 		const promise = window.initWebRTCWidget("test-token");
-		const assertion = expect(promise).rejects.toThrow(/did not mount within/);
+		const assertion = expect(promise).rejects.toThrow(/did not become ready within/);
 
 		await vi.advanceTimersByTimeAsync(20_000);
 		await assertion;
@@ -154,5 +162,72 @@ describe("initWebRTCWidget lifecycle", () => {
 		expect(document.body.children).toHaveLength(0);
 
 		expect(() => window.destroyWebRTCWidget()).not.toThrow();
+	});
+
+	it("rejects, and leaves nothing behind, when the endpoint config cannot be loaded", async () => {
+		configFailsToLoad("HTTP 404");
+		const promise = window.initWebRTCWidget("test-token");
+		const assertion = expect(promise).rejects.toThrow("HTTP 404");
+
+		await vi.advanceTimersByTimeAsync(0);
+		await assertion;
+		expect(document.body.children).toHaveLength(0);
+	});
+
+	it("aborts an init that is superseded before it mounted, instead of leaving a zombie widget", async () => {
+		const first = window.initWebRTCWidget("test-token");
+		const firstAssertion = expect(first).rejects.toMatchObject({ name: "AbortError" });
+		const second = window.initWebRTCWidget("test-token");
+
+		await vi.advanceTimersByTimeAsync(0);
+		await firstAssertion;
+		await expect(second).resolves.toHaveProperty("on");
+
+		// Only the second init ever rendered; the first one's mount timer was cancelled.
+		expect(mockedApp).toHaveBeenCalledTimes(1);
+		expect(document.body.children).toHaveLength(1);
+	});
+
+	it("aborts a pending init when destroyWebRTCWidget() is called", async () => {
+		const promise = window.initWebRTCWidget("test-token");
+		const assertion = expect(promise).rejects.toMatchObject({ name: "AbortError" });
+
+		window.destroyWebRTCWidget();
+		await vi.advanceTimersByTimeAsync(0);
+
+		await assertion;
+		expect(mockedApp).not.toHaveBeenCalled();
+		expect(document.body.children).toHaveLength(0);
+	});
+
+	it("reports an error raised after init resolved instead of swallowing it", async () => {
+		let reportError: ((error: Error) => void) | undefined;
+		mockedApp.mockImplementation(({ mainRef, onError }: any) => {
+			reportError = onError;
+			mainRef?.({ on: vi.fn(), updateSettings: vi.fn() } as IWidgetInstance);
+			return null;
+		});
+		const promise = window.initWebRTCWidget("test-token");
+		await vi.advanceTimersByTimeAsync(0);
+		await promise;
+
+		reportError?.(new Error("broke after init"));
+
+		// Rethrown on a clean stack, so it reaches the host page's window.onerror.
+		expect(() => vi.runOnlyPendingTimers()).toThrow("broke after init");
+	});
+
+	it("rejects instead of throwing synchronously when document.body is missing", async () => {
+		const body = document.body;
+		body.remove();
+		try {
+			let promise: Promise<unknown> | undefined;
+			expect(() => {
+				promise = window.initWebRTCWidget("test-token");
+			}).not.toThrow();
+			await expect(promise).rejects.toThrow();
+		} finally {
+			document.documentElement.appendChild(body);
+		}
 	});
 });
