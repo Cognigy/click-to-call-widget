@@ -1,4 +1,4 @@
-import { useEffect, useRef, useReducer, useState, useImperativeHandle, useMemo } from "preact/hooks";
+import { useCallback, useEffect, useRef, useReducer, useState, useImperativeHandle, useMemo } from "preact/hooks";
 import { forwardRef } from "preact/compat";
 
 import PrivacyDialog from "./PrivacyDialog";
@@ -23,7 +23,7 @@ import { VoiceBotWidgetContainer } from "./VoiceBotWidget.styles";
 const VoiceBotWidget = forwardRef<IWidgetInstance>((_, ref) => {
 	const config = useWebrtcContext();
 	const webrtcDispatch = useWebrtcDispatch();
-	const { startCall, userAgentRef } = useSip();
+	const { startCall, userAgentRef, addExternalListener } = useSip();
 
 	const [state, dispatch] = useReducer(callReducer, initialCallState);
 	const [showPrivacyDialog, setShowPrivacyDialog] = useState(false);
@@ -284,6 +284,36 @@ const VoiceBotWidget = forwardRef<IWidgetInstance>((_, ref) => {
 		startCall();
 	};
 
+	// NOTE: `useImperativeHandle` must stay above every early return below.
+	// Preact hooks are positional, so skipping it on one render and running it
+	// on the next misaligns the hook list. It is also what fulfils `mainRef`
+	// (WidgetRoot forwards it once the config has loaded), and `widgetConfig`
+	// comes from an async fetch -- so while it sat below the
+	// `!widgetConfig?.active` return, the first render always skipped it and
+	// `initWebRTCWidget()` could hang forever waiting for a ref that never
+	// arrived.
+	//
+	// `on()` goes through useSip's listener registry rather than straight to
+	// the current client: the client may not exist yet, and is recreated when
+	// the SIP settings change.
+	const eventHandler = addExternalListener;
+
+	const updateSettings = useCallback(
+		(settings: IUpdateableSettings) => {
+			webrtcDispatch({ type: ActionTypes.UPDATE_SETTINGS, payload: settings });
+		},
+		[webrtcDispatch]
+	);
+
+	useImperativeHandle(
+		ref,
+		() => ({
+			on: eventHandler,
+			updateSettings,
+		}),
+		[eventHandler, updateSettings]
+	);
+
 	if (showPrivacyDialog) {
 		return (
 			<PrivacyDialog onClose={handleEndCall} onContinue={onPermissionGranted} />
@@ -299,23 +329,6 @@ const VoiceBotWidget = forwardRef<IWidgetInstance>((_, ref) => {
 			</VoiceBotWidgetContainer>
 		);
 	}
-
-	const eventHandler = (event: string, handler: (...args: any[]) => void) => {
-		userAgentRef.current?.on(event, handler);
-	};
-
-	useImperativeHandle(
-		ref,
-		() => {
-			return {
-				on: eventHandler,
-				updateSettings: (settings: IUpdateableSettings) => {
-					webrtcDispatch({ type: ActionTypes.UPDATE_SETTINGS, payload: settings });
-				},
-			};
-		},
-		[eventHandler, webrtcDispatch]
-	);
 
 	const { isCalling, isCallAnswered, isMuted, sessionStatus, transcriptMessages, remoteStream, localStream } = state;
 

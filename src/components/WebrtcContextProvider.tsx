@@ -1,5 +1,5 @@
 import { createContext } from "preact";
-import { useContext, useEffect, useReducer } from "preact/hooks";
+import { useContext, useEffect, useReducer, useRef } from "preact/hooks";
 import type { Dispatch } from "preact/hooks";
 
 import { ActionTypes, type IOptions, type IWebrtcContext } from "../types";
@@ -170,25 +170,56 @@ export const WebrtcContextProvider = ({
 	token: urlWithToken,
 	options,
 	children,
+	onConfigLoaded,
+	onConfigError,
 }: {
 	token: string;
 	options?: IOptions;
 	children: React.ReactNode;
+	/** Called once the endpoint config has been fetched and applied. */
+	onConfigLoaded?: () => void;
+	/** Called when the endpoint config cannot be fetched (network error or non-2xx). */
+	onConfigError?: (error: Error) => void;
 }) => {
 	const [state, dispatch] = useReducer(webrtcReducer, initialState);
 
+	// Read through refs so the fetch effect below does not re-run (and refetch)
+	// when a parent passes new callback identities.
+	const onConfigLoadedRef = useRef(onConfigLoaded);
+	const onConfigErrorRef = useRef(onConfigError);
+	onConfigLoadedRef.current = onConfigLoaded;
+	onConfigErrorRef.current = onConfigError;
+
 	useEffect(() => {
-		fetch(urlWithToken)
+		// The config fetch outlives a fast unmount (destroy + re-init, or an
+		// embedding page tearing the widget down). Without aborting it, the
+		// late `dispatch` lands on a component that is no longer mounted.
+		const controller = new AbortController();
+
+		fetch(urlWithToken, { signal: controller.signal })
 			.then(async (response) => {
+				if (!response.ok) {
+					throw new Error(
+						`[WebRTCWidget] failed to fetch the endpoint config: HTTP ${response.status}`
+					);
+				}
 				const data = await response.json();
+				if (controller.signal.aborted) return;
 				dispatch({
 					type: ActionTypes.SET_DATA,
 					payload: data,
 				});
+				onConfigLoadedRef.current?.();
 			})
 			.catch((e) => {
+				// Whatever an aborted request rejects with (AbortError in browsers,
+				// something else under some test interceptors), it is not a failure.
+				if (controller.signal.aborted) return;
 				console.error("Failed to fetch WebRTC config:", e);
+				onConfigErrorRef.current?.(e instanceof Error ? e : new Error(String(e)));
 			});
+
+		return () => controller.abort();
 	}, [urlWithToken]);
 
 	useEffect(() => {

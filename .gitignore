@@ -34,7 +34,8 @@ public/demo-audio/
 requirements/
 scripts/
 
-# Real credentials (use mock.example.json as template)
+# Local copy pointed at a real endpoint (use src/mocks/mock.example.json as the
+# template). The committed example is what tests and `npm run dev` use.
 src/mocks/mock.json
 
 build-demo.sh

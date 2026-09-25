@@ -4,7 +4,7 @@ import VoiceBotWidget from "../components/VoiceBotWidget";
 import { WebrtcContextProvider } from "../components/WebrtcContextProvider";
 import * as WebrtcContext from "../components/WebrtcContextProvider";
 import * as HelperFunctions from "../helpers";
-import mockDataJson from "../mocks/mock.json";
+import mockDataJson from "../mocks/mock.example.json";
 import type { IWebrtcContext } from "../types";
 
 const mockData = mockDataJson as unknown as IWebrtcContext;
@@ -137,6 +137,7 @@ describe("VoiceBotWidget", () => {
 				startCall: mockStartCall,
 				endCall: vi.fn(),
 				userAgentRef: mockUserAgentRef,
+				addExternalListener: vi.fn(),
 			}),
 		}));
 
@@ -176,6 +177,83 @@ describe("VoiceBotWidget", () => {
 			</WebrtcContextProvider>
 		);
 	};
+
+	// CGY-36067: `useImperativeHandle` used to sit *below* the
+	// `!widgetConfig?.active` and `showPrivacyDialog` early returns. Because
+	// `widgetConfig` arrives from an async fetch, the first render always took
+	// the inactive branch and skipped the hook -- so `mainRef` was never
+	// fulfilled and `initWebRTCWidget()` hung. These pin the hook above both
+	// returns.
+	describe("imperative handle (CGY-36067)", () => {
+		const renderWithRef = (context: Partial<IWebrtcContext> = {}) => {
+			const ref = { current: null as unknown };
+			vi.spyOn(WebrtcContext, "useWebrtcContext").mockReturnValue({
+				...mockData,
+				options: mockOptions,
+				...context,
+			} as IWebrtcContext);
+
+			render(
+				<WebrtcContextProvider token="test-token">
+					{/* biome-ignore lint/suspicious/noExplicitAny: test ref plumbing */}
+					<VoiceBotWidget ref={ref as any} />
+				</WebrtcContextProvider>
+			);
+			return ref;
+		};
+
+		it("fulfils the ref when the widget config is active", () => {
+			const ref = renderWithRef();
+			expect(ref.current).toMatchObject({
+				on: expect.any(Function),
+				updateSettings: expect.any(Function),
+			});
+		});
+
+		it("still fulfils the ref when the widget config is INACTIVE", () => {
+			const ref = renderWithRef({
+				endpointSettings: {
+					...mockData.endpointSettings,
+					webrtcWidgetConfig: {
+						...mockData.endpointSettings.webrtcWidgetConfig,
+						active: false,
+					},
+				},
+			});
+
+			expect(ref.current).toMatchObject({
+				on: expect.any(Function),
+				updateSettings: expect.any(Function),
+			});
+		});
+
+		it("keeps the ref fulfilled across the privacy-dialog early return", async () => {
+			vi.spyOn(HelperFunctions, "getLocalStore").mockReturnValue(null);
+			const ref = renderWithRef({
+				settings: {
+					...mockData.settings,
+					privacyNotice: {
+						...mockData.settings.privacyNotice,
+						enabled: true,
+					},
+				},
+			});
+
+			expect(ref.current).not.toBeNull();
+
+			// Clicking call flips `showPrivacyDialog`, which takes the other
+			// early return. The handle must survive that render.
+			fireEvent.click(screen.getByTestId("cognigy-call-button"));
+			await waitFor(() =>
+				expect(screen.getByTestId("cognigy-privacy-dialog")).toBeInTheDocument()
+			);
+
+			expect(ref.current).toMatchObject({
+				on: expect.any(Function),
+				updateSettings: expect.any(Function),
+			});
+		});
+	});
 
 	it("renders correctly in initial state", async () => {
 		const widget = renderComponent();

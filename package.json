@@ -15,9 +15,11 @@
     "preview": "vite preview",
     "lint": "biome lint",
     "lint:fix": "biome format src --write",
-    "test": "vitest --run"
+    "test": "vitest --run",
+    "check:bundle": "node tools/check-bundle-globals.mjs dist/webRTCWidget.js"
   },
   "dependencies": {
+    "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
     "@mui/icons-material": "^5.17.1",
