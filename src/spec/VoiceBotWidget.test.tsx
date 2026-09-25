@@ -137,6 +137,7 @@ describe("VoiceBotWidget", () => {
 				startCall: mockStartCall,
 				endCall: vi.fn(),
 				userAgentRef: mockUserAgentRef,
+				addExternalListener: vi.fn(),
 			}),
 		}));
 
