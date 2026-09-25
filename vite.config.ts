@@ -33,7 +33,14 @@ export default defineConfig(({ mode }) => {
 			lib: {
 				entry: "src/main.tsx",
 				name: "WebRTCWidget",
-				formats: ["cjs"],
+				// Must be a wrapped format. The bundle is loaded with a classic
+				// <script>, where an unwrapped ("cjs") bundle's top-level names --
+				// ~490 minified ones, incl. Preact's internal `_` -- all become
+				// `window` properties. Webchat's bundled lodash then sets
+				// `window._ = lodash` and every later Preact render throws
+				// "Cannot read properties of undefined (reading '__k')"
+				// (CGY-36067). Guarded by `npm run check:bundle`.
+				formats: ["iife"],
 				fileName: () => "webRTCWidget.js",
 			},
 			// Add output directory configuration
