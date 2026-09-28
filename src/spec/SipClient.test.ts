@@ -108,4 +108,44 @@ describe("SipClient", () => {
 
 		expect(UA).toHaveBeenCalledWith(expect.objectContaining({ uri: "sip:anonymous@sbc.example.com" }));
 	});
+
+	it("does not include password in emitted event data (AU-3)", () => {
+		const client = new SipClient(baseClient, { wsUri: "wss://example.com" });
+
+		// Capture the handlers SipClient registered on the JsSIP UA mock
+		const registeredHandlers = mockUaInstance.on.mock.calls;
+
+		// Find the handlers for events that previously carried { ...data, client }
+		for (const evtName of ["connecting", "connected", "disconnected", "registrationFailed"]) {
+			const handlerCall = registeredHandlers.find(([name]: any) => name === evtName);
+			expect(handlerCall, `handler for '${evtName}' should be registered`).toBeDefined();
+
+			// Capture what SipClient emits when the JsSIP event fires
+			const emitted: any[] = [];
+			client.on(evtName, (data: any) => emitted.push(data));
+
+			// Fire the JsSIP event with some mock data
+			const handler = handlerCall![1];
+			handler({ someJsSipField: "value" });
+
+			expect(emitted).toHaveLength(1);
+			expect(emitted[0]).not.toHaveProperty("password");
+			expect(emitted[0]).not.toHaveProperty("client");
+			expect(emitted[0]).toHaveProperty("someJsSipField", "value");
+		}
+	});
+
+	it("does not log the password to the console", () => {
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		try {
+			new SipClient(baseClient, { wsUri: "wss://example.com" });
+
+			for (const call of consoleSpy.mock.calls) {
+				const logged = JSON.stringify(call);
+				expect(logged).not.toContain("secret");
+			}
+		} finally {
+			consoleSpy.mockRestore();
+		}
+	});
 });
