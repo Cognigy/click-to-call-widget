@@ -27,27 +27,36 @@ const destroyWebRTCWidget = () => {
 const initWebRTCWidget = async (token: string, options?: IOptions, callback?: (webrtcWidget: LegacyWidgetApi) => void) => {
 	destroyWebRTCWidget();
 
-	return new Promise<LegacyWidgetApi>((resolve) => {
+	return new Promise<LegacyWidgetApi>((resolve, reject) => {
 		const webrtcWidget = document.createElement("div");
 		document.body.appendChild(webrtcWidget);
 		currentWidgetContainer = webrtcWidget;
 
-	const newOptions: IOptions = options ? { ...options } : {};
+		const newOptions: IOptions = options ? { ...options } : {};
 
-	let webrtcWidgetRef : LegacyWidgetApi | null = null;
+		let webrtcWidgetRef: LegacyWidgetApi | null = null;
+		// A later init or destroy replaces the container; stop waiting for this one.
+		const superseded = () => currentWidgetContainer !== webrtcWidget;
+		const abandoned = () => new Error("Widget was destroyed before it finished initializing");
 
-	setTimeout(async() => {
-		render(<App mainRef={(ref: LegacyWidgetApi) => {
-			webrtcWidgetRef = ref;
-		}} token={token} options={newOptions} />, webrtcWidget);
-		while (!webrtcWidgetRef) {
-			await new Promise(resolve => setTimeout(resolve, 500));
-		}
-		if(callback) {
-			callback(webrtcWidgetRef);
-		}
-		resolve(webrtcWidgetRef);
-	}, ASYNC_DELAY);
+		setTimeout(async () => {
+			try {
+				if (superseded()) throw abandoned();
+				render(<App mainRef={(ref: LegacyWidgetApi) => {
+					webrtcWidgetRef = ref;
+				}} token={token} options={newOptions} />, webrtcWidget);
+				while (!webrtcWidgetRef) {
+					if (superseded()) throw abandoned();
+					await new Promise(resolve => setTimeout(resolve, 500));
+				}
+				if (callback) {
+					callback(webrtcWidgetRef);
+				}
+				resolve(webrtcWidgetRef);
+			} catch (error) {
+				reject(error);
+			}
+		}, ASYNC_DELAY);
 	});
 };
 
