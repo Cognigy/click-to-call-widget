@@ -1,19 +1,33 @@
-import { useEffect } from "preact/hooks";
+import { useEffect, useLayoutEffect, useMemo } from "preact/hooks";
 import { CacheProvider } from "@emotion/react";
 import createCache from "@emotion/cache";
 
-import { WebrtcContextProvider } from "./WebrtcContextProvider";
+import { WebrtcContextProvider, useWebrtcContext } from "./WebrtcContextProvider";
 import { DemoPageBackground } from "./DemoPageBackground";
 import VoiceBotWidget from "./VoiceBotWidget";
 import { EMOTION_CACHE_KEY, WIDGET_FONT_HREF } from "../constants/constants";
 import { ensureWidgetFontLoaded } from "../helpers";
 import type { IOptions } from "../types/index.ts";
+import { createLegacyWidgetApi, type LegacyWidgetApi } from "../legacy/legacyWidgetApi";
 
 // Module-scope singleton: a cache per mount would re-scan/re-adopt our own tags on every
 // initWebRTCWidget() call (see EMOTION_CACHE_KEY).
 const emotionCache = createCache({ key: EMOTION_CACHE_KEY });
 
-const App = ({ token, options, mainRef: ref }: { token: string; options: IOptions, mainRef: any }) => {
+type MainRef = (widget: LegacyWidgetApi) => void;
+
+// Hands integrators the legacy widget API as soon as the client exists.
+const LegacyApiBridge = ({ mainRef }: { mainRef?: MainRef }) => {
+	const client = useWebrtcContext().client;
+	const api = useMemo(() => (client ? createLegacyWidgetApi(client) : null), [client]);
+	// Layout effect: initWebRTCWidget polls for the ref right after render.
+	useLayoutEffect(() => {
+		if (api) mainRef?.(api);
+	}, [api, mainRef]);
+	return null;
+};
+
+const App = ({ token, options, mainRef }: { token: string; options: IOptions; mainRef?: MainRef }) => {
 	useEffect(() => {
 		ensureWidgetFontLoaded(WIDGET_FONT_HREF);
 	}, []);
@@ -22,7 +36,8 @@ const App = ({ token, options, mainRef: ref }: { token: string; options: IOption
 		<CacheProvider value={emotionCache}>
 			<WebrtcContextProvider token={token} options={options}>
 				<DemoPageBackground />
-				<VoiceBotWidget ref={ref} />
+				<LegacyApiBridge mainRef={mainRef} />
+				<VoiceBotWidget />
 			</WebrtcContextProvider>
 		</CacheProvider>
 	);
