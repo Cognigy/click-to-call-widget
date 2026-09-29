@@ -76,7 +76,7 @@ Provides essential call controls including:
 
 ### Event Handling and Callbacks (deprecated)
 
-> **Deprecated.** The `widget.on(...)` event API below is kept for backwards compatibility only. It is a thin layer over the SDK and behaves slightly differently from the previous JsSIP-based implementation (see [Differences from the previous implementation](#differences-from-the-previous-implementation)). For new integrations, use the SDK API described in the README of [`@cognigy/click-to-call-sdk`](https://github.com/Cognigy/click-to-call-sdk).
+> **Deprecated.** The `widget.on(...)` event API below is kept for backwards compatibility only. It is a thin layer over the SDK and behaves slightly differently from the previous JsSIP-based implementation (see [Differences from the previous implementation](#differences-from-the-previous-implementation)). For new integrations, use the SDK API described in the README of [`@cognigy/click-to-call-sdk`](https://github.com/Cognigy/click-to-call-sdk). Integrators who need call events should use `@cognigy/click-to-call-sdk` directly.
 
 The widget provides a comprehensive event system for handling WebRTC sessions and user interactions. You can attach event listeners and callbacks in two ways:
 
@@ -179,6 +179,10 @@ window.initWebRTCWidget(token, {},(widget) => {
 - With call transfers (REFER/replaces), the replaced session no longer receives `ended` or `terminated`.
 - The mute button is disabled until the call is answered.
 - `initWebRTCWidget` now resolves even when the widget is inactive.
+- `initWebRTCWidget` resolves before the config has loaded, and also when the config fetch fails.
+- `disconnected` now fires after every call, including a remote hangup, because the widget disconnects after each call.
+- Session objects no longer emit `close`, `peerconnection` or `active`, and no longer expose `direction`, `number`, `endInfo`, `duration`, `hold`/`unhold`, `answer` or `setActive`.
+- A transport drop during an established call now ends the call (previously the media continued while the WebSocket reconnected).
 
 ### Sending Info Messages (deprecated)
 

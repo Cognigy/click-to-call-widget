@@ -3,8 +3,8 @@ import { waitFor } from "@testing-library/preact";
 
 import "../main";
 import App from "../components/WebrtcWidget.tsx";
-import { resetFakeJssip } from "./fakes/fakeJssip";
-import { clickCall, lastSession, lastUA, legacyConfig, mountWidget, serveConfig } from "./contract/harness";
+import { FakeUA, resetFakeJssip } from "./fakes/fakeJssip";
+import { clickCall, clickEnd, lastSession, lastUA, legacyConfig, mountWidget, serveConfig } from "./contract/harness";
 
 vi.mock("jssip", async () => (await import("./fakes/fakeJssip")).fakeJssipModule);
 
@@ -155,6 +155,42 @@ describe("WebRTC Widget Initialization", () => {
       mode.renderRealApp = false;
       window.destroyWebRTCWidget();
     });
+
+    it.each(["remote hangup", "user end"])(
+      "places a second call after %s on a new UA with a new legacy session",
+      async (end) => {
+        serveConfig(legacyConfig());
+        const widget = await mountWidget({ userId: "u-1" });
+        const sessions: { jssipRtcSession: unknown }[] = [];
+        widget.on("newRTCSession", (s: { jssipRtcSession: unknown }) => sessions.push(s));
+
+        await clickCall();
+        await waitFor(() => expect(lastUA().call).toHaveBeenCalled(), { timeout: 3000 });
+        const firstUA = lastUA();
+        const first = lastSession();
+        first.progress();
+        first.accept();
+        if (end === "remote hangup") {
+          // A remote BYE: JsSIP marks the session ended, then emits.
+          (first as unknown as { _ended: boolean })._ended = true;
+          first.emit("ended", { originator: "remote", cause: "Terminated" });
+        } else {
+          await clickEnd();
+        }
+        await waitFor(() => expect(firstUA.stop).toHaveBeenCalled());
+
+        await clickCall();
+        await waitFor(() => expect(FakeUA.instances).toHaveLength(2), { timeout: 3000 });
+        const secondUA = lastUA();
+        await waitFor(() => expect(secondUA.call).toHaveBeenCalledTimes(1), { timeout: 3000 });
+
+        expect(firstUA.call).toHaveBeenCalledTimes(1);
+        expect(sessions).toHaveLength(2);
+        expect(sessions[1]).not.toBe(sessions[0]);
+        expect(sessions[0].jssipRtcSession).toBe(first);
+        expect(sessions[1].jssipRtcSession).toBe(lastSession());
+      }
+    );
 
     it("destroy mid-call terminates and silences legacy handlers", async () => {
       const unhandled = vi.fn();

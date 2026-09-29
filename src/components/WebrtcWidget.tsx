@@ -8,13 +8,13 @@ import { createLegacyWidgetApi, type LegacyWidgetApi } from "../legacy/legacyWid
 
 type MainRef = (widget: LegacyWidgetApi) => void;
 
-// Hands integrators the legacy widget API as soon as the client exists.
+// Hands integrators the legacy widget API on first render; without WebRTC it is inert.
 const LegacyApiBridge = ({ mainRef }: { mainRef?: MainRef }) => {
 	const client = useWebrtcContext().client;
-	const api = useMemo(() => (client ? createLegacyWidgetApi(client) : null), [client]);
+	const api = useMemo(() => createLegacyWidgetApi(client), [client]);
 	// Layout effect: initWebRTCWidget polls for the ref right after render.
 	useLayoutEffect(() => {
-		if (api) mainRef?.(api);
+		mainRef?.(api);
 	}, [api, mainRef]);
 	return null;
 };
