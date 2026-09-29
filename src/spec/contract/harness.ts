@@ -85,9 +85,13 @@ export async function clickCall() {
 }
 
 export async function clickEnd() {
-	const button = await screen.findByTestId("cognigy-end-call-button");
-	// Disabled until the session rings; a click on a disabled button is a silent no-op.
-	await waitFor(() => expect(button).toBeEnabled());
+	// Disabled until the session rings (a click on a disabled button is a silent
+	// no-op); re-query so a re-rendered button is never clicked stale.
+	let button!: HTMLElement;
+	await waitFor(() => {
+		button = screen.getByTestId("cognigy-end-call-button");
+		expect(button).toBeEnabled();
+	});
 	fireEvent.click(button);
 }
 
