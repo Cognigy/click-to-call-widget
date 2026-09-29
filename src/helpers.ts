@@ -1,5 +1,6 @@
 import { CallActionType } from "./types";
 import type { CallState, CallAction } from "./types";
+import { COGNIGY_WEBRTC_OPTIONS } from "./constants/constants";
 
 export const getLocalStore = (key: string) => {
 	const item = localStorage.getItem(key);
@@ -46,6 +47,24 @@ export function randomId(prefix?: string): string {
 		return `${prefix}-${result}`;
 	}
 	return result;
+}
+
+// Explicit ids are used as-is; generated ones persist so the caller ID survives reloads.
+export function resolveUserId(
+	explicitUserId: string | undefined,
+	endpointName: string
+): string {
+	if (explicitUserId) return explicitUserId;
+
+	const existingUserOptions = getLocalStore(COGNIGY_WEBRTC_OPTIONS) || {};
+	if (existingUserOptions.userId) return existingUserOptions.userId;
+
+	const safeName =
+		(endpointName || "").replace(/[^a-zA-Z0-9-]/g, "").toLowerCase() ||
+		"endpoint";
+	const userId = `webrtc-${safeName}-${randomId()}`;
+	setLocalStore(COGNIGY_WEBRTC_OPTIONS, { ...existingUserOptions, userId });
+	return userId;
 }
 
 export const shouldEnableEndCall = (status: string) =>

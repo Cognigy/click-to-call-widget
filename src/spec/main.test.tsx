@@ -48,7 +48,7 @@ describe("WebRTC Widget Initialization", () => {
     document.body.innerHTML = "";
   });
 
-  it("should initialize with empty options when no options provided (userId generated in context provider)", async () => {
+  it("should initialize with empty options when no options provided (userId is resolved by resolveUserId, see helpers.test.ts)", async () => {
     await window.initWebRTCWidget("test-token");
 
     expect(document.body.appendChild).toHaveBeenCalledWith(
@@ -80,7 +80,7 @@ describe("WebRTC Widget Initialization", () => {
     );
   });
 
-  it("should initialize with empty options when empty options provided (userId generated in context provider)", async () => {
+  it("should initialize with empty options when empty options provided (userId is resolved by resolveUserId, see helpers.test.ts)", async () => {
     await window.initWebRTCWidget("test-token", {});
 
     expect(App).toHaveBeenCalledWith(
