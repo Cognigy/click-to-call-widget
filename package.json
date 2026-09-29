@@ -20,6 +20,7 @@
     "check:bundle": "node tools/check-bundle-globals.mjs dist/webRTCWidget.js"
   },
   "dependencies": {
+    "@cognigy/click-to-call-sdk": "file:../../click-to-call-sdk/packs/cognigy-click-to-call-sdk-0.2.0.tgz",
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
