@@ -49,7 +49,10 @@ const VoiceBotWidget = () => {
 	const themeCSS = useMemo(() => getThemeCSSVariables(theme), [theme]);
 
 	const placeCall = async () => {
-		if (!client) return;
+		if (!client) {
+			console.error("[VoiceBotWidget] Call failed: WebRTC is not supported in this environment");
+			return;
+		}
 		const attempt = ++callAttemptRef.current;
 		try {
 			const connecting = client.connect();
