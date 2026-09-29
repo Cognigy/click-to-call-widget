@@ -1,11 +1,25 @@
-import { useEffect } from "preact/hooks";
+import { useEffect, useLayoutEffect, useMemo } from "preact/hooks";
 
-import { WebrtcContextProvider } from "./WebrtcContextProvider";
+import { WebrtcContextProvider, useWebrtcContext } from "./WebrtcContextProvider";
 import { DemoPageBackground } from "./DemoPageBackground";
 import VoiceBotWidget from "./VoiceBotWidget";
 import type { IOptions } from "../types/index.ts";
+import { createLegacyWidgetApi, type LegacyWidgetApi } from "../legacy/legacyWidgetApi";
 
-const App = ({ token, options, mainRef: ref }: { token: string; options: IOptions, mainRef: any }) => {
+type MainRef = (widget: LegacyWidgetApi) => void;
+
+// Hands integrators the legacy widget API on first render; without WebRTC it is inert.
+const LegacyApiBridge = ({ mainRef }: { mainRef?: MainRef }) => {
+	const client = useWebrtcContext().client;
+	const api = useMemo(() => createLegacyWidgetApi(client), [client]);
+	// Layout effect: initWebRTCWidget polls for the ref right after render.
+	useLayoutEffect(() => {
+		mainRef?.(api);
+	}, [api, mainRef]);
+	return null;
+};
+
+const App = ({ token, options, mainRef }: { token: string; options: IOptions; mainRef?: MainRef }) => {
 	useEffect(() => {
 		const font = document.createElement("link");
 		font.href =
@@ -17,7 +31,8 @@ const App = ({ token, options, mainRef: ref }: { token: string; options: IOption
 	return (
 		<WebrtcContextProvider token={token} options={options}>
 			<DemoPageBackground />
-			<VoiceBotWidget ref={ref} />
+			<LegacyApiBridge mainRef={mainRef} />
+			<VoiceBotWidget />
 		</WebrtcContextProvider>
 	);
 };

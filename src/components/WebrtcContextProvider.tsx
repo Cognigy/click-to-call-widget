@@ -1,12 +1,12 @@
 import { createContext } from "preact";
-import { useContext, useEffect, useReducer } from "preact/hooks";
+import { useContext, useEffect, useMemo, useReducer } from "preact/hooks";
 
 import { ActionTypes, type IOptions, type IWebrtcContext } from "../types";
-import { getLocalStore, randomId, setLocalStore } from "../helpers";
-import { COGNIGY_WEBRTC_OPTIONS } from "../constants/constants";
+import { useWebRTCClient } from "../hooks/useWebRTCClient";
 
 // Define the initial state
 const initialState: IWebrtcContext = {
+	client: null,
 	organisationId: "",
 	projectId: "",
 	endpointSettings: {
@@ -67,25 +67,14 @@ export const WebrtcContext = createContext(initialState);
 function webrtcReducer(state: any, action: any) {
 	switch (action.type) {
 		case ActionTypes.SET_DATA: {
-			const newState = {
+			return {
 				...state,
 				...action.payload,
 				options: {
 					...state.options,
 					...action.payload.options,
-				}
+				},
 			};
-
-			if (!newState.options?.userId) {
-				const originalEndpointName = newState.endpointSettings?.endpointName || "";
-				const endpointName = originalEndpointName.replace(/[^a-zA-Z0-9-]/g, '').toLowerCase() || 'endpoint';
-				const existingUserOptions = getLocalStore(COGNIGY_WEBRTC_OPTIONS) || {};
-				const userId = existingUserOptions.userId || `webrtc-${endpointName}-${randomId()}`;
-				setLocalStore(COGNIGY_WEBRTC_OPTIONS, { ...existingUserOptions, userId });
-				newState.options = { ...newState.options, userId };
-			}
-
-			return newState;
 		}
 		case ActionTypes.SET_OPTIONS: {
 			const newOptions = {
@@ -104,9 +93,6 @@ function webrtcReducer(state: any, action: any) {
 					...action.payload.widgetOverrides,
 				}
 			};
-			if (action.payload.demoMode !== undefined) {
-				newOptions.demoMode = action.payload.demoMode;
-			}
 			const newState = {
 				...state,
 				options: newOptions,
@@ -147,19 +133,19 @@ export const WebrtcContextProvider = ({
 }) => {
 	const [state, dispatch] = useReducer(webrtcReducer, initialState);
 
+	const { client, config, userId } = useWebRTCClient(
+		urlWithToken,
+		options?.userId
+	);
+
 	useEffect(() => {
-		fetch(urlWithToken)
-			.then(async (response) => {
-				const data = await response.json();
-				dispatch({
-					type: ActionTypes.SET_DATA,
-					payload: data,
-				});
-			})
-			.catch((e) => {
-				console.error("Failed to fetch WebRTC config:", e);
-			});
-	}, [urlWithToken]);
+		if (!config) return;
+		dispatch({
+			type: ActionTypes.SET_DATA,
+			// The SDK's EndpointConfig is structurally the widget's config payload.
+			payload: { ...(config as unknown as Partial<IWebrtcContext>), options: { userId } },
+		});
+	}, [config, userId]);
 
 	useEffect(() => {
 		if(options) {
@@ -170,8 +156,10 @@ export const WebrtcContextProvider = ({
 		}
 	}, [options]);
 
+	const value = useMemo(() => ({ ...state, client }), [state, client]);
+
 	return (
-		<WebrtcContext.Provider value={state}>{children}</WebrtcContext.Provider>
+		<WebrtcContext.Provider value={value}>{children}</WebrtcContext.Provider>
 	);
 };
 
