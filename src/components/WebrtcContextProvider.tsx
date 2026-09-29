@@ -93,9 +93,6 @@ function webrtcReducer(state: any, action: any) {
 					...action.payload.widgetOverrides,
 				}
 			};
-			if (action.payload.demoMode !== undefined) {
-				newOptions.demoMode = action.payload.demoMode;
-			}
 			const newState = {
 				...state,
 				options: newOptions,
