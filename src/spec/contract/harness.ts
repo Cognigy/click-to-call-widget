@@ -100,13 +100,13 @@ export async function clickMute() {
 }
 
 export function lastUA(): FakeUA {
-	const ua = FakeUA.instances.at(-1);
+	const ua = FakeUA.instances[FakeUA.instances.length - 1];
 	if (!ua) throw new Error("no FakeUA was created");
 	return ua;
 }
 
 export function lastSession(): FakeRTCSession {
-	const session = lastUA().sessions.at(-1);
+	const session = lastUA().sessions[lastUA().sessions.length - 1];
 	if (!session) throw new Error("no FakeRTCSession was created");
 	return session;
 }

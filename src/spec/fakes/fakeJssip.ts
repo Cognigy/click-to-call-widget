@@ -162,7 +162,14 @@ export class FakeUA extends EventEmitter {
 	});
 
 	call = vi.fn(
-		(_target: string, options: { data?: Record<string, unknown> } = {}) => {
+		(
+			_target: string,
+			options: {
+				data?: Record<string, unknown>;
+				mediaConstraints?: Record<string, unknown>;
+				extraHeaders: string[];
+			}
+		) => {
 			this.callTimestamps.push(performance.now());
 			const session = new FakeRTCSession(options);
 			this.sessions.push(session);
