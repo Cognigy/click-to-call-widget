@@ -115,25 +115,33 @@ describe("WebRTC Widget Initialization", () => {
       mode.skipRef = false;
     });
 
-    it("rejects instead of polling forever when destroyed before render", async () => {
-      const pending = window.initWebRTCWidget("test-token");
+    // Long enough for the 0ms init timer and one 500ms poll tick.
+    const SETTLE_MS = 700;
+
+    it("stops without rendering or settling when destroyed before render", async () => {
+      const callback = vi.fn();
+      const settled = vi.fn();
+      window.initWebRTCWidget("test-token", {}, callback).then(settled, settled);
       window.destroyWebRTCWidget();
 
-      await expect(pending).rejects.toThrow(/destroyed/);
+      await new Promise((r) => setTimeout(r, SETTLE_MS));
       expect(App).not.toHaveBeenCalled();
+      expect(callback).not.toHaveBeenCalled();
+      expect(settled).not.toHaveBeenCalled();
     });
 
-    it("stops polling and rejects when destroyed while waiting for the ref", async () => {
+    it("stops polling without calling back or settling when destroyed while waiting for the ref", async () => {
       mode.skipRef = true;
-      const pending = window.initWebRTCWidget("test-token");
+      const callback = vi.fn();
       const settled = vi.fn();
-      pending.catch(settled);
+      window.initWebRTCWidget("test-token", {}, callback).then(settled, settled);
 
       await waitFor(() => expect(App).toHaveBeenCalled());
       window.destroyWebRTCWidget();
 
-      await expect(pending).rejects.toThrow(/destroyed/);
-      expect(settled).toHaveBeenCalledTimes(1);
+      await new Promise((r) => setTimeout(r, SETTLE_MS));
+      expect(callback).not.toHaveBeenCalled();
+      expect(settled).not.toHaveBeenCalled();
     });
   });
 
