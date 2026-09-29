@@ -6,7 +6,8 @@ import { createLegacyWidgetApi, type LegacySession } from "../legacy/legacyWidge
 // Just enough of WebRTCClient for the shim: events plus the call methods.
 class FakeClient {
 	private handlers = new Map<string, Set<(...args: any[]) => void>>();
-	rawSession: unknown = { raw: true };
+	// The SDK tags each RTCSession with its session id in `data.sessionId`.
+	rawSession: unknown = { data: { sessionId: "s-1" } };
 	sendInfo = vi.fn(async (_text: string, _data?: Record<string, unknown>) => {});
 	endCall = vi.fn(async () => {});
 	mute = vi.fn(async () => {});
@@ -154,6 +155,21 @@ describe("legacy widget API", () => {
 
 		expect(first).toEqual([]);
 		expect(second).toEqual(["ringing", "newInfo"]);
+	});
+
+	it("jssipRtcSession is the session's own RTCSession, also while a replaced one is still current", () => {
+		const { client, sessions } = setup();
+		const raw1 = client.rawSession;
+		client.emit("sessionCreated", callSession("s-1"));
+
+		// REFER/replaces: s-2 is created while s-1 is still the SDK's current session.
+		client.emit("sessionCreated", callSession("s-2"));
+		expect(sessions[1].jssipRtcSession).toBeNull();
+
+		const raw2 = { data: { sessionId: "s-2" } };
+		client.rawSession = raw2;
+		expect(sessions[1].jssipRtcSession).toBe(raw2);
+		expect(sessions[0].jssipRtcSession).toBe(raw1);
 	});
 
 	it("handler exceptions are swallowed and logged", () => {

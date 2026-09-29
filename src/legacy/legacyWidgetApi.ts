@@ -70,7 +70,8 @@ function logFailure(action: string) {
  * The session object `newRTCSession`/`session` handlers receive, shaped like the
  * old SipSession. Events: ringing, answered + accepted, newInfo, transcription,
  * failed, ended + terminated, change. It only forwards while it is the latest
- * session and until it ends.
+ * session and until it ends. Its methods always act on the client's current
+ * call, also once a newer session has detached it.
  */
 export class LegacySession extends Emitter {
 	private _status: SessionStatus;
@@ -78,7 +79,7 @@ export class LegacySession extends Emitter {
 	private _done = false;
 	private readonly _client: WebRTCClient;
 	private readonly _id: string;
-	private readonly _rtcSession: ExtendedRTCSession | null;
+	private _rtcSession: ExtendedRTCSession | null = null;
 
 	constructor(client: WebRTCClient, session: CallSession) {
 		super();
@@ -86,8 +87,8 @@ export class LegacySession extends Emitter {
 		this._id = session.id;
 		this._status = session.status;
 		this._muted = session.muted;
-		// sessionCreated fires once the SDK tracks the session, so this is it.
-		this._rtcSession = client.getRawSession();
+		// Captured while it is the client's current one, so it survives the call.
+		this._captureRtcSession();
 	}
 
 	get id(): string {
@@ -102,8 +103,21 @@ export class LegacySession extends Emitter {
 		return this._muted;
 	}
 
+	/**
+	 * This session's JsSIP RTCSession, or null while the client's current raw
+	 * session is another one (e.g. a REFER/replaces session created while the
+	 * replaced call is still active). The SDK has no id-to-session lookup, so
+	 * this is read lazily and matched by the `data.sessionId` the SDK tags it with.
+	 */
 	get jssipRtcSession(): ExtendedRTCSession | null {
+		this._captureRtcSession();
 		return this._rtcSession;
+	}
+
+	private _captureRtcSession(): void {
+		if (this._rtcSession) return;
+		const raw = this._client.getRawSession();
+		if (raw?.data?.sessionId === this._id) this._rtcSession = raw;
 	}
 
 	/** Sends `{ text, data }` as application/json INFO; needs an answered call. */
@@ -184,8 +198,10 @@ export class LegacySession extends Emitter {
 class LegacyWidget extends Emitter implements LegacyWidgetApi {
 	private current: LegacySession | null = null;
 
-	constructor(client: WebRTCClient) {
+	constructor(client: WebRTCClient | null) {
 		super();
+		// Without WebRTC there is no client: handlers can be added but never fire.
+		if (!client) return;
 		for (const name of CLIENT_EVENTS) {
 			client.on(name, (data?: object) => this.emit(name, { ...data, client }));
 		}
@@ -210,8 +226,8 @@ class LegacyWidget extends Emitter implements LegacyWidgetApi {
 
 /**
  * Builds the pre-SDK widget API (`widget.on(event, handler)`) on top of a
- * WebRTCClient. Listeners go away with `client.destroy()`.
+ * WebRTCClient (inert for null). Listeners go away with `client.destroy()`.
  */
-export function createLegacyWidgetApi(client: WebRTCClient): LegacyWidgetApi {
+export function createLegacyWidgetApi(client: WebRTCClient | null): LegacyWidgetApi {
 	return new LegacyWidget(client);
 }
