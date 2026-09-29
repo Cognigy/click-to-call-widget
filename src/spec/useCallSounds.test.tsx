@@ -40,11 +40,26 @@ describe("useCallSounds", () => {
 			initialProps: { state },
 		});
 
+	const session = { id: "s-1" } as unknown as ClientState["session"];
+
 	it("plays hungup on ended", () => {
-		const hook = renderSounds({ ...idleState, status: "answered" });
-		hook.rerender({ state: { ...idleState, status: "ended" } });
+		const hook = renderSounds({ ...idleState, status: "answered", session });
+		hook.rerender({ state: { ...idleState, status: "ended", session } });
 
 		expect(played).toEqual([{ src: sounds.hungup, volume: 1, loop: false }]);
+	});
+
+	it("plays no hungup when the call ends before a session exists", () => {
+		const hook = renderSounds({ ...idleState, status: "connecting" });
+		hook.rerender({
+			state: {
+				...idleState,
+				status: "ended",
+				endInfo: { originator: "local", cause: "Canceled" },
+			},
+		});
+
+		expect(played).toEqual([]);
 	});
 
 	it("plays failed only for remote failures", () => {
