@@ -2,6 +2,7 @@
 import { render } from "preact";
 import App from "./components/WebrtcWidget.tsx";
 import type { IOptions } from "./types/index.ts";
+import type { LegacyWidgetApi } from "./legacy/legacyWidgetApi.ts";
 
 const ASYNC_DELAY = process.env.NODE_ENV === "development" ? 500 : 0;
 
@@ -23,20 +24,20 @@ const destroyWebRTCWidget = () => {
 	}
 };
 
-const initWebRTCWidget = async (token: string, options?: IOptions, callback?: (webrtcWidget: typeof App) => void) => {
+const initWebRTCWidget = async (token: string, options?: IOptions, callback?: (webrtcWidget: LegacyWidgetApi) => void) => {
 	destroyWebRTCWidget();
 
-	return new Promise((resolve) => {
+	return new Promise<LegacyWidgetApi>((resolve) => {
 		const webrtcWidget = document.createElement("div");
 		document.body.appendChild(webrtcWidget);
 		currentWidgetContainer = webrtcWidget;
 
 	const newOptions: IOptions = options ? { ...options } : {};
 
-	let webrtcWidgetRef : typeof App | null = null;
+	let webrtcWidgetRef : LegacyWidgetApi | null = null;
 
 	setTimeout(async() => {
-		render(<App mainRef={(ref: typeof App) => {
+		render(<App mainRef={(ref: LegacyWidgetApi) => {
 			webrtcWidgetRef = ref;
 		}} token={token} options={newOptions} />, webrtcWidget);
 		while (!webrtcWidgetRef) {

@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState, useImperativeHandle, useMemo } from "preact/hooks";
-import { forwardRef } from "preact/compat";
+import { useEffect, useRef, useState, useMemo } from "preact/hooks";
 
 import PrivacyDialog from "./PrivacyDialog";
 import { AvatarLogo } from "./AvatarLogo";
@@ -19,7 +18,7 @@ import { VoiceBotWidgetContainer } from "./VoiceBotWidget.styles";
 
 const RINGING_LEAD_IN_MS = 1200;
 
-const VoiceBotWidget = forwardRef((_, ref) => {
+const VoiceBotWidget = () => {
 	const config = useWebrtcContext();
 	const client = config?.client ?? null;
 	const state = useCallState(client);
@@ -45,9 +44,6 @@ const VoiceBotWidget = forwardRef((_, ref) => {
 
 	const theme = useMemo(() => getTheme(widgetConfig?.theme), [widgetConfig?.theme]);
 	const themeCSS = useMemo(() => getThemeCSSVariables(theme), [theme]);
-
-	// Replaced by legacy shim in Task 13.
-	useImperativeHandle(ref, () => ({ on() {} }), []);
 
 	const placeCall = async () => {
 		if (!client) return;
@@ -204,6 +200,6 @@ const VoiceBotWidget = forwardRef((_, ref) => {
 			</div>
 		</VoiceBotWidgetContainer>
 	);
-});
+};
 
 export default VoiceBotWidget;
