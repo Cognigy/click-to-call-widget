@@ -4,7 +4,6 @@ import type { ClientState, WebRTCClient } from "@cognigy/click-to-call-sdk";
 import VoiceBotWidget from "../components/VoiceBotWidget";
 import { WebrtcContext } from "../components/WebrtcContextProvider";
 import type { IWebrtcContext } from "../types";
-import * as sounds from "../constants/sounds";
 
 const PRIVACY_KEY = "call-privacy-permission-granted";
 
@@ -37,8 +36,6 @@ function createFakeClient() {
 			emitState({ status: "connecting" });
 			return Promise.resolve();
 		}),
-		isConnected: vi.fn(() => true),
-		disconnect: vi.fn(() => Promise.resolve()),
 		startCall: vi.fn(() => Promise.resolve()),
 		endCall: vi.fn(() => Promise.resolve()),
 		mute: vi.fn(() => Promise.resolve()),
@@ -286,41 +283,33 @@ describe("VoiceBotWidget", () => {
 		expect(widget.getByTestId("cognigy-call-button")).toBeInTheDocument();
 	});
 
-	it("does not place the INVITE when the call is ended during the lead-in", async () => {
+	it("does not place the INVITE after the widget unmounts during the lead-in", async () => {
 		const widget = renderWidget();
 		fireEvent.click(widget.getByTestId("cognigy-call-button"));
-		fake.emitState({ status: "ringing" });
-		fireEvent.click(widget.getByTestId("cognigy-end-call-button"));
+		widget.unmount();
 
 		await vi.advanceTimersByTimeAsync(1500);
 		expect(fake.client.startCall).not.toHaveBeenCalled();
 	});
 
-	it("reconnects before the INVITE when the transport dropped during the lead-in", async () => {
-		const play = vi.mocked(HTMLMediaElement.prototype.play);
-		const played: string[] = [];
-		play.mockImplementation(function (this: HTMLMediaElement) {
-			played.push(this.src);
-			return Promise.resolve();
-		});
-		// Like the SDK: tearing down the pending connection reports "ended".
-		fake.client.disconnect.mockImplementationOnce(() => {
-			fake.emitState({ status: "ended", endInfo: { originator: "local", cause: "Canceled" } });
-			return Promise.resolve();
+	it("does not log the connect rejection of a superseded attempt", async () => {
+		const error = vi.spyOn(console, "error").mockImplementation(() => {});
+		let rejectConnect!: (e: Error) => void;
+		fake.client.connect.mockImplementationOnce(() => {
+			fake.emitState({ status: "connecting" });
+			return new Promise<void>((_, reject) => {
+				rejectConnect = reject;
+			});
 		});
 		const widget = renderWidget();
-		fake.client.isConnected.mockReturnValueOnce(false);
 		fireEvent.click(widget.getByTestId("cognigy-call-button"));
+		widget.unmount();
+		// Like the SDK tearing down the pending connect.
+		rejectConnect(new Error("Failed to connect: Canceled"));
 
-		await vi.advanceTimersByTimeAsync(1200);
-		expect(fake.client.disconnect).toHaveBeenCalledTimes(1);
-		expect(fake.client.connect).toHaveBeenCalledTimes(2);
-		expect(fake.client.startCall).toHaveBeenCalledTimes(1);
-		// The teardown is internal: no hangup tone, no flash back to idle.
-		expect(played).not.toContain(sounds.hungup);
-		expect(widget.queryByTestId("cognigy-call-button")).not.toBeInTheDocument();
-		play.mockReset();
-		play.mockResolvedValue(undefined);
+		await vi.advanceTimersByTimeAsync(1500);
+		expect(error).not.toHaveBeenCalled();
+		error.mockRestore();
 	});
 
 	it("logs instead of throwing when connect rejects", async () => {

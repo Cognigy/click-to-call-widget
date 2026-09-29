@@ -58,12 +58,13 @@ export function useCallSounds(state: ClientState) {
 
 		if (state.status === "ended") {
 			stopRinging();
-			playOnce(sounds.hungup, 1);
+			// A cancel before any session existed was never a call to hang up.
+			if (state.session) playOnce(sounds.hungup, 1);
 		} else if (state.status === "failed") {
 			stopRinging();
 			if (state.endInfo?.originator === "remote") playOnce(sounds.failed, 0.25);
 		}
-	}, [state.status, state.endInfo, stopRinging]);
+	}, [state.status, state.endInfo, state.session, stopRinging]);
 
 	useEffect(() => stopRinging, [stopRinging]);
 
