@@ -8,7 +8,7 @@ import { clickCall, lastSession, lastUA, legacyConfig, mountWidget, serveConfig 
 
 vi.mock("jssip", async () => (await import("./fakes/fakeJssip")).fakeJssipModule);
 
-const mode = vi.hoisted(() => ({ renderRealApp: false }));
+const mode = vi.hoisted(() => ({ renderRealApp: false, skipRef: false }));
 
 // Mock App component with ref handling; `mode.renderRealApp` renders the real one.
 vi.mock("../components/WebrtcWidget.tsx", async (importOriginal) => {
@@ -17,7 +17,7 @@ vi.mock("../components/WebrtcWidget.tsx", async (importOriginal) => {
   const AppMock = vi.fn((props) => {
     if (mode.renderRealApp) return h(actual.default, props);
     // Call the ref callback immediately with a mock ref
-    if (props.mainRef) {
+    if (props.mainRef && !mode.skipRef) {
       props.mainRef({ on: vi.fn() });
     }
     return null;
@@ -108,6 +108,33 @@ describe("WebRTC Widget Initialization", () => {
     const widgetContainer = document.querySelector("div");
     expect(widgetContainer).toBeTruthy();
     expect(document.body.contains(widgetContainer)).toBe(true);
+  });
+
+  describe("destroy before the widget ref is delivered", () => {
+    afterEach(() => {
+      mode.skipRef = false;
+    });
+
+    it("rejects instead of polling forever when destroyed before render", async () => {
+      const pending = window.initWebRTCWidget("test-token");
+      window.destroyWebRTCWidget();
+
+      await expect(pending).rejects.toThrow(/destroyed/);
+      expect(App).not.toHaveBeenCalled();
+    });
+
+    it("stops polling and rejects when destroyed while waiting for the ref", async () => {
+      mode.skipRef = true;
+      const pending = window.initWebRTCWidget("test-token");
+      const settled = vi.fn();
+      pending.catch(settled);
+
+      await waitFor(() => expect(App).toHaveBeenCalled());
+      window.destroyWebRTCWidget();
+
+      await expect(pending).rejects.toThrow(/destroyed/);
+      expect(settled).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("with the real widget", () => {

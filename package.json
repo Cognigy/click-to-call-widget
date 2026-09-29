@@ -26,8 +26,6 @@
     "@emotion/styled": "^11.13.0",
     "@mui/icons-material": "^5.17.1",
     "@mui/material": "^5.17.1",
-    "events": "^3.3.0",
-    "jssip": "^3.10.1",
     "preact": "^10.27.3"
   },
   "devDependencies": {
