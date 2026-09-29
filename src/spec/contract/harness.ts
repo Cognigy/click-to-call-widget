@@ -1,4 +1,5 @@
-import { fireEvent, screen } from "@testing-library/preact";
+import { fireEvent, screen, waitFor } from "@testing-library/preact";
+import { expect } from "vitest";
 import { http, HttpResponse } from "msw";
 import type { IOptions } from "../../types";
 import { type FakeRTCSession, FakeUA } from "../fakes/fakeJssip";
@@ -84,7 +85,10 @@ export async function clickCall() {
 }
 
 export async function clickEnd() {
-	fireEvent.click(await screen.findByTestId("cognigy-end-call-button"));
+	const button = await screen.findByTestId("cognigy-end-call-button");
+	// Disabled until the session rings; a click on a disabled button is a silent no-op.
+	await waitFor(() => expect(button).toBeEnabled());
+	fireEvent.click(button);
 }
 
 export async function clickMute() {
