@@ -1,4 +1,4 @@
-import { useRef, useState, useImperativeHandle, useMemo } from "preact/hooks";
+import { useEffect, useRef, useState, useImperativeHandle, useMemo } from "preact/hooks";
 import { forwardRef } from "preact/compat";
 
 import PrivacyDialog from "./PrivacyDialog";
@@ -22,15 +22,15 @@ const RINGING_LEAD_IN_MS = 1200;
 const VoiceBotWidget = forwardRef((_, ref) => {
 	const config = useWebrtcContext();
 	const client = config?.client ?? null;
-	const clientState = useCallState(client);
-	// Masks the internal teardown while reconnecting so it neither rings off nor flashes idle.
-	const [reconnecting, setReconnecting] = useState(false);
-	const state = reconnecting ? { ...clientState, status: "connecting" as const } : clientState;
+	const state = useCallState(client);
 	const { ringFor, stopRinging } = useCallSounds(state);
 
 	const [showPrivacyDialog, setShowPrivacyDialog] = useState(false);
-	// Bumped on end so a pending start does not place the INVITE after a cancel.
+	// Bumped on end and unmount so a pending start does not place the INVITE.
 	const callAttemptRef = useRef(0);
+	useEffect(() => () => {
+		callAttemptRef.current++;
+	}, []);
 
 	const serverConfig = config?.endpointSettings?.webrtcWidgetConfig;
 	const overrides = config?.options?.widgetOverrides;
@@ -62,22 +62,10 @@ const VoiceBotWidget = forwardRef((_, ref) => {
 			await ringFor(RINGING_LEAD_IN_MS);
 			await connecting;
 			if (attempt !== callAttemptRef.current) return;
-			if (!client.isConnected()) {
-				// A transport drop during the lead-in clears the SDK's registration,
-				// so startCall would refuse; re-establish the connection instead.
-				let reconnect: Promise<void>;
-				setReconnecting(true);
-				try {
-					await client.disconnect();
-					reconnect = client.connect();
-				} finally {
-					setReconnecting(false);
-				}
-				await reconnect;
-				if (attempt !== callAttemptRef.current) return;
-			}
 			await client.startCall();
 		} catch (error) {
+			// A cancel rejects connect(); that is not an error worth logging.
+			if (attempt !== callAttemptRef.current) return;
 			// The client state already reflects the failure.
 			console.error("[VoiceBotWidget] Call failed:", error);
 		}
