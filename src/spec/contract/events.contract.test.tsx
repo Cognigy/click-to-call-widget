@@ -87,6 +87,24 @@ describe("event contract", () => {
 		await waitFor(() => expect(events).toEqual(["failed"]));
 	});
 
+	it("ending the call before it is answered returns the UI to idle", async () => {
+		serveConfig(legacyConfig());
+		await mountWidget({ userId: "u-1" });
+		await clickCall();
+		await waitFor(() => expect(lastUA().call).toHaveBeenCalled(), TIMEOUT);
+		lastSession().progress();
+
+		await clickEnd();
+
+		await waitFor(() =>
+			expect(lastSession().terminate).toHaveBeenCalledWith({
+				status_code: 480,
+				reason_phrase: "Ended by user",
+			})
+		);
+		await expectIdle();
+	});
+
 	it("newInfo carries { originator, info } for non-transcription INFO and skips transcription", async () => {
 		serveConfig(legacyConfig());
 		const widget = await mountWidget({ userId: "u-1" });
@@ -142,12 +160,21 @@ describe("event contract", () => {
 	});
 
 	it("registrationFailed exposes response.status_code", async () => {
+		// JsSIP emits registrationFailed instead of registered, so never register.
+		FakeUA.autoRegister = false;
 		serveConfig(legacyConfig());
 		const widget = await mountWidget({ userId: "u-1" });
 		const handler = vi.fn();
+		const connected = vi.fn();
 		widget.on("registrationFailed", handler);
+		widget.on("connected", connected);
 		await clickCall();
-		await waitFor(() => expect(lastUA().start).toHaveBeenCalled(), TIMEOUT);
+		// Emit only once the UA is connected and the widget shows the calling state.
+		await waitFor(() => {
+			expect(connected).toHaveBeenCalled();
+			expect(screen.getByTestId("cognigy-end-call-button")).toBeInTheDocument();
+		}, TIMEOUT);
+		expect(lastUA().isRegistered()).toBe(false);
 
 		lastUA().emit("registrationFailed", {
 			response: { status_code: 403, reason_phrase: "Forbidden" },
@@ -197,7 +224,18 @@ describe("timeout and disconnect contract", () => {
 		vi.useFakeTimers({ shouldAdvanceTime: true });
 		await clickCall();
 		await waitFor(() => expect(lastUA().start).toHaveBeenCalled(), TIMEOUT);
-		await vi.advanceTimersByTimeAsync(10_500);
+
+		// The INVITE goes out after the lead-in but no session ever arrives.
+		await vi.advanceTimersByTimeAsync(1_500);
+		expect(lastUA().call).toHaveBeenCalledTimes(1);
+
+		// ~9s after the click: still connecting, nothing stopped.
+		await vi.advanceTimersByTimeAsync(7_500);
+		expect(lastUA().stop).not.toHaveBeenCalled();
+		expect(screen.queryByTestId("cognigy-call-button")).not.toBeInTheDocument();
+
+		// Past 10s: the setup timeout fires.
+		await vi.advanceTimersByTimeAsync(1_500);
 		vi.useRealTimers();
 
 		await waitFor(() => expect(lastUA().stop).toHaveBeenCalled());
@@ -219,6 +257,8 @@ describe("timeout and disconnect contract", () => {
 			document.querySelector(".webrtc_widget_tagline")
 		).toHaveTextContent("Connecting...");
 		expect(screen.queryByTestId("cognigy-call-button")).not.toBeInTheDocument();
+		// The call carried on after the ignored disconnect.
+		await waitFor(() => expect(lastUA().call).toHaveBeenCalled(), TIMEOUT);
 	});
 
 	it("disconnect after the session exists ends the call", async () => {
@@ -258,7 +298,7 @@ describe("consent and transcription contract", () => {
 
 		screen.getByTestId("cognigy-privacy-continue").click();
 
-		expect(localStorage.getItem(PRIVACY_KEY)).toBe("true");
+		await waitFor(() => expect(localStorage.getItem(PRIVACY_KEY)).toBe("true"));
 		await waitFor(() => expect(lastUA().call).toHaveBeenCalled(), TIMEOUT);
 		expect(screen.queryByTestId("cognigy-privacy-dialog")).not.toBeInTheDocument();
 	});

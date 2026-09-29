@@ -11,6 +11,7 @@ export class FakeRTCSession extends EventEmitter {
 	private _established = false;
 	private _ended = false;
 	private _audioMuted = false;
+	private _videoMuted = false;
 
 	constructor(options: { data?: Record<string, unknown> } = {}) {
 		super();
@@ -25,25 +26,47 @@ export class FakeRTCSession extends EventEmitter {
 		return this._ended;
 	}
 
-	// Real JsSIP throws on an ended session; a silent no-op keeps the fake forgiving.
+	// Like JsSIP: throws on an ended session; an unanswered outgoing session is
+	// canceled (`failed`, cause Canceled), only an established one ends (`ended`).
 	terminate = vi.fn((_opts?: unknown) => {
-		if (this._ended) return;
+		if (this._ended) {
+			throw new Error("InvalidStateError: session is terminated");
+		}
 		this._ended = true;
-		this.emit("ended", { originator: "local", cause: "Terminated" });
-	});
-	// Like JsSIP: emit only when the audio-muted state actually changes.
-	mute = vi.fn((opts: { audio?: boolean } = { audio: true }) => {
-		if (!this._audioMuted && opts.audio) {
-			this._audioMuted = true;
-			this.emit("muted", { audio: true, video: false });
+		if (this._established) {
+			this.emit("ended", { originator: "local", cause: "Terminated" });
+		} else {
+			this.emit("failed", {
+				originator: "local",
+				cause: "Canceled",
+				message: null,
+			});
 		}
 	});
-	unmute = vi.fn((opts: { audio?: boolean } = { audio: true }) => {
-		if (this._audioMuted && opts.audio) {
-			this._audioMuted = false;
-			this.emit("unmuted", { audio: true, video: false });
+	// Like JsSIP: emit only when a requested track actually changes state, with
+	// per-track flags of what changed.
+	mute = vi.fn(
+		(
+			opts: { audio?: boolean; video?: boolean } = { audio: true, video: false }
+		) => {
+			const audio = !this._audioMuted && !!opts.audio;
+			const video = !this._videoMuted && !!opts.video;
+			if (audio) this._audioMuted = true;
+			if (video) this._videoMuted = true;
+			if (audio || video) this.emit("muted", { audio, video });
 		}
-	});
+	);
+	unmute = vi.fn(
+		(
+			opts: { audio?: boolean; video?: boolean } = { audio: true, video: true }
+		) => {
+			const audio = this._audioMuted && !!opts.audio;
+			const video = this._videoMuted && !!opts.video;
+			if (audio) this._audioMuted = false;
+			if (video) this._videoMuted = false;
+			if (audio || video) this.emit("unmuted", { audio, video });
+		}
+	);
 	sendDTMF = vi.fn();
 	// The widget puts the session on hold/unhold as it becomes (in)active.
 	hold = vi.fn();
@@ -80,6 +103,8 @@ export class FakeRTCSession extends EventEmitter {
 export class FakeUA extends EventEmitter {
 	static instances: FakeUA[] = [];
 	static autoSession = true;
+	// false: start() connects but never registers (registrationFailed replaces registered in JsSIP).
+	static autoRegister = true;
 
 	config: Record<string, any>;
 	sessions: FakeRTCSession[] = [];
@@ -114,7 +139,7 @@ export class FakeUA extends EventEmitter {
 			this._connected = true;
 			this.emit("connected", {});
 		});
-		if (this.config.register !== false) {
+		if (this.config.register !== false && FakeUA.autoRegister) {
 			queueMicrotask(() => {
 				this._registered = true;
 				this.emit("registered", {});
@@ -167,4 +192,5 @@ export const fakeJssipModule = {
 export function resetFakeJssip(): void {
 	FakeUA.instances = [];
 	FakeUA.autoSession = true;
+	FakeUA.autoRegister = true;
 }
