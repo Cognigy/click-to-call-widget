@@ -1,4 +1,4 @@
-import { EventEmitter } from "node:events";
+import { EventEmitter } from "events";
 import { vi } from "vitest";
 
 export class FakeRTCSession extends EventEmitter {
