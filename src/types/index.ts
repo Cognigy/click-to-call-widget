@@ -1,3 +1,4 @@
+import type { WebRTCClient } from "@cognigy/click-to-call-sdk";
 import type { RTCSession } from "jssip/lib/RTCSession";
 import type { ThemeName } from "../constants/themes";
 import type { TranscriptMessage } from "../components/TranscriptDisplay";
@@ -95,6 +96,7 @@ interface IOptions {
 	demoMode?: boolean;
 }
 interface IWebrtcContext {
+	client: WebRTCClient | null;
 	organisationId: string;
 	projectId: string;
 	endpointSettings: IEndpointSettings;
