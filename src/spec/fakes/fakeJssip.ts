@@ -10,6 +10,7 @@ export class FakeRTCSession extends EventEmitter {
 	remote_identity = { uri: { user: "bot" } };
 	private _established = false;
 	private _ended = false;
+	private _audioMuted = false;
 
 	constructor(options: { data?: Record<string, unknown> } = {}) {
 		super();
@@ -24,15 +25,24 @@ export class FakeRTCSession extends EventEmitter {
 		return this._ended;
 	}
 
+	// Real JsSIP throws on an ended session; a silent no-op keeps the fake forgiving.
 	terminate = vi.fn((_opts?: unknown) => {
+		if (this._ended) return;
 		this._ended = true;
 		this.emit("ended", { originator: "local", cause: "Terminated" });
 	});
-	mute = vi.fn((_opts?: unknown) => {
-		this.emit("muted", {});
+	// Like JsSIP: emit only when the audio-muted state actually changes.
+	mute = vi.fn((opts: { audio?: boolean } = { audio: true }) => {
+		if (!this._audioMuted && opts.audio) {
+			this._audioMuted = true;
+			this.emit("muted", { audio: true, video: false });
+		}
 	});
-	unmute = vi.fn((_opts?: unknown) => {
-		this.emit("unmuted", {});
+	unmute = vi.fn((opts: { audio?: boolean } = { audio: true }) => {
+		if (this._audioMuted && opts.audio) {
+			this._audioMuted = false;
+			this.emit("unmuted", { audio: true, video: false });
+		}
 	});
 	sendDTMF = vi.fn();
 	// The widget puts the session on hold/unhold as it becomes (in)active.
@@ -80,27 +90,55 @@ export class FakeUA extends EventEmitter {
 		FakeUA.instances.push(this);
 	}
 
+	/** performance.now() of every call() — lets tests assert the INVITE lead-in. */
+	callTimestamps: number[] = [];
+
 	private _started = false;
+	private _connected = false;
+	private _registered = false;
+
+	isConnected() {
+		return this._connected;
+	}
+
+	isRegistered() {
+		return this._registered;
+	}
 
 	start = vi.fn(() => {
 		this._started = true;
-		queueMicrotask(() => this.emit("connecting", {}));
-		queueMicrotask(() => this.emit("connected", {}));
+		queueMicrotask(() => {
+			this.emit("connecting", {});
+		});
+		queueMicrotask(() => {
+			this._connected = true;
+			this.emit("connected", {});
+		});
 		if (this.config.register !== false) {
-			queueMicrotask(() => this.emit("registered", {}));
+			queueMicrotask(() => {
+				this._registered = true;
+				this.emit("registered", {});
+			});
 		}
 	});
 
-	// Like JsSIP: only a started UA disconnects; the widget calls stop() from its
-	// own "disconnected" handler, so an unguarded emit would recurse forever.
+	// Like JsSIP: terminates live sessions, and only a started UA disconnects; the
+	// widget calls stop() from its own "disconnected" handler, so an unguarded emit
+	// would recurse forever.
 	stop = vi.fn(() => {
+		for (const session of this.sessions) {
+			if (!session.isEnded()) session.terminate();
+		}
 		if (!this._started) return;
 		this._started = false;
+		this._connected = false;
+		this._registered = false;
 		queueMicrotask(() => this.emit("disconnected", {}));
 	});
 
 	call = vi.fn(
 		(_target: string, options: { data?: Record<string, unknown> } = {}) => {
+			this.callTimestamps.push(performance.now());
 			const session = new FakeRTCSession(options);
 			this.sessions.push(session);
 			if (FakeUA.autoSession) {

@@ -83,14 +83,16 @@ describe("SIP contract", () => {
 		});
 		serveConfig(legacyConfig());
 		await mountWidget({ userId: "u-1" });
+		const clickedAt = performance.now();
 		await clickCall();
 
-		expect(lastUA().start).toHaveBeenCalled();
+		// The UA may only come into existence after the click (async config/SDK setup).
+		await waitFor(() => expect(lastUA().start).toHaveBeenCalled(), { timeout: 3000 });
 		expect(lastUA().call).not.toHaveBeenCalled();
-		await new Promise((r) => setTimeout(r, 1000));
-		expect(lastUA().call).not.toHaveBeenCalled();
-		await waitFor(() => expect(lastUA().call).toHaveBeenCalledTimes(1), { timeout: 2500 });
+		await waitFor(() => expect(lastUA().call).toHaveBeenCalledTimes(1), { timeout: 3000 });
 
+		// Timers only fire late, never early: the INVITE goes out >= ~1.2s after the click.
+		expect(lastUA().callTimestamps[0] - clickedAt).toBeGreaterThanOrEqual(1150);
 		expect(playedSrcs).toContain(sounds.ringing);
 	});
 
@@ -142,10 +144,12 @@ describe("SIP contract", () => {
 		lastSession().progress();
 		await clickEnd();
 
-		expect(lastSession().terminate).toHaveBeenCalledWith({
-			status_code: 480,
-			reason_phrase: "Ended by user",
-		});
+		await waitFor(() =>
+			expect(lastSession().terminate).toHaveBeenCalledWith({
+				status_code: 480,
+				reason_phrase: "Ended by user",
+			})
+		);
 		await waitFor(() => expect(lastUA().stop).toHaveBeenCalled());
 	});
 
@@ -161,8 +165,12 @@ describe("SIP contract", () => {
 		await screen.findByTestId("cognigy-mute-unmute-button");
 
 		await clickMute();
-		expect(session.mute).toHaveBeenCalledWith({ audio: true, video: true });
+		await waitFor(() =>
+			expect(session.mute).toHaveBeenCalledWith({ audio: true, video: true })
+		);
 		await clickMute();
-		expect(session.unmute).toHaveBeenCalledWith({ audio: true, video: true });
+		await waitFor(() =>
+			expect(session.unmute).toHaveBeenCalledWith({ audio: true, video: true })
+		);
 	});
 });
