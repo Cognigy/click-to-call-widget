@@ -302,22 +302,13 @@ export class SipSession extends events.EventEmitter {
 		});
 
 		this._rtcSession.on("replaces", (data) => {
-			// console.log("Got here -> replaces");
-
-			const { accept } = data;
-			accept((rtcSession: TExtendedRTCSession) => {
-				// Set the replaces flag into the session so it won't ring.
-				rtcSession.data.replaces = true;
-				this._onSession(rtcSession);
-
-				// Auto-answer (unless already answered).
-				if (!rtcSession.isEstablished()) {
-					rtcSession.answer({
-						mediaConstraints: { audio: true, video: false },
-						pcConfig: this._pcConfig,
-					});
-				}
-			});
+			// AC-3: reject Replaces unconditionally. No VG component sends
+			// INVITE-with-Replaces on the outbound path (verified across
+			// sbc-outbound, sbc-inbound, feature-server, sbc-call-router).
+			// The previous auto-answer with audio:true was a zero-interaction
+			// microphone capture vulnerability (CTCW-AC3-002).
+			const { reject } = data;
+			reject();
 		});
 
 		const candidateTypes: Record<string, number> = {
