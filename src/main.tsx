@@ -34,20 +34,21 @@ const initWebRTCWidget = async (token: string, options?: IOptions, callback?: (w
 		const newOptions: IOptions = options ? { ...options } : {};
 
 		let webrtcWidgetRef: IWidgetInstance | null = null;
-		// A later init or destroy replaces the container; stop waiting for this one.
+		// A later init or destroy replaces the container; stop waiting for this one
+		// and leave its promise pending (integrators and previews treat a rejection as a failed init).
 		const superseded = () => currentWidgetContainer !== webrtcWidget;
-		const abandoned = () => new Error("Widget was destroyed before it finished initializing");
 
 		setTimeout(async () => {
 			try {
-				if (superseded()) throw abandoned();
+				if (superseded()) return;
 				render(<App mainRef={(ref: IWidgetInstance) => {
 					webrtcWidgetRef = ref;
 				}} token={token} options={newOptions} />, webrtcWidget);
 				while (!webrtcWidgetRef) {
-					if (superseded()) throw abandoned();
+					if (superseded()) return;
 					await new Promise(resolve => setTimeout(resolve, 500));
 				}
+				if (superseded()) return;
 				if (callback) {
 					callback(webrtcWidgetRef);
 				}
