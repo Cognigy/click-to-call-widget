@@ -87,6 +87,8 @@ export default defineConfig(({ mode }) => {
 			globals: true,
 			environment: "jsdom",
 			setupFiles: "./src/spec/setup.ts",
+			// Inline the SDK so vi.mock("jssip") also intercepts its own jssip import.
+			server: { deps: { inline: ["@cognigy/click-to-call-sdk"] } },
 			alias: {
 				"react": "preact/compat",
 				"react-dom": "preact/compat",
