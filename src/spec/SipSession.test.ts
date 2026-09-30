@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SipSession } from "../utils/SipSession";
 
 // Minimal mock of TExtendedRTCSession — just enough to construct SipSession
-// and capture the "replaces" handler.
+// and capture the event handlers.
 function createMockRtcSession() {
 	const handlers: Record<string, (...args: any[]) => void> = {};
 	return {
@@ -50,6 +50,23 @@ describe("SipSession", () => {
 		const accept = vi.fn();
 		const reject = vi.fn();
 		replacesHandler({ accept, reject });
+
+		expect(reject).toHaveBeenCalledTimes(1);
+		expect(accept).not.toHaveBeenCalled();
+	});
+
+	it("rejects an inbound REFER instead of accepting unconditionally (AC-3)", () => {
+		const mockRtcSession = createMockRtcSession();
+		new SipSession(mockRtcSession as any, {
+			onSession: vi.fn(),
+		});
+
+		const referHandler = mockRtcSession._handlers["refer"];
+		expect(referHandler).toBeDefined();
+
+		const accept = vi.fn();
+		const reject = vi.fn();
+		referHandler({ request: {}, accept, reject });
 
 		expect(reject).toHaveBeenCalledTimes(1);
 		expect(accept).not.toHaveBeenCalled();
