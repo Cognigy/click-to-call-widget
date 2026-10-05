@@ -64,6 +64,22 @@ export function legacyConfig(overrides?: ConfigOverrides) {
 	);
 }
 
+export function legacyConfigWithEndpointId(overrides?: ConfigOverrides) {
+	return withOverrides(
+		baseConfig(
+			{
+				username: "widget-user",
+				password: "pw",
+				realm: "sip.example.com",
+				applicationSid: "app-sid-1",
+				wsUri: WS_URI,
+			},
+			"ep-1"
+		),
+		overrides
+	);
+}
+
 export function runtimeConfig(overrides?: ConfigOverrides) {
 	return withOverrides(baseConfig({ wsUri: WS_URI }, "ep-1"), overrides);
 }

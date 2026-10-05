@@ -137,11 +137,13 @@ export default function useSip() {
 	const sipUsername = sipInfo?.username;
 	const sipPassword = sipInfo?.password;
 	const userId = config?.options?.userId;
-	// Runtime (org/project/endpoint-backed) identity headers — see SipClient's
-	// isRuntime branch. Absent for legacy endpoints.
+	const applicationSid = sipInfo?.applicationSid;
 	const organisationId = config?.organisationId;
 	const projectId = config?.projectId;
-	const endpointId = config?.endpointSettings?.endpointId;
+	// The handshake sends endpointId for legacy endpoints too; declaring it would
+	// skip REGISTER and get the call rejected by the SBC.
+	const hasLegacyCredentials = !!(realm || applicationSid);
+	const endpointId = hasLegacyCredentials ? undefined : config?.endpointSettings?.endpointId;
 
 	useEffect(() => {
 		try {
@@ -205,15 +207,9 @@ export default function useSip() {
 			stopRingingAudio();
 			// The dialed user part is no longer parsed for routing once identity is
 			// declared via headers — it's forwarded as-is for CDR/logging purposes
-			// only, so a bare endpointId is enough there; old-style configs (no
-			// endpointId) keep dialing app-<applicationSid> as before.
-			const { organisationId, projectId, endpointSettings } = config ?? {};
-			const endpointId = endpointSettings?.endpointId;
-			const target =
-				organisationId && projectId && endpointId
-					? endpointId
-					: `app-${endpointSettings?.sipConnectivityInfo?.applicationSid}`;
-			ua.call(target);
+			// only, so a bare endpointId is enough there; legacy endpoints keep
+			// dialing app-<applicationSid>.
+			ua.call(endpointId ?? `app-${applicationSid}`);
 		}, 1200);
 
 		return true;
