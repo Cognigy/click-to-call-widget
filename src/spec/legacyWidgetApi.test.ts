@@ -211,11 +211,10 @@ describe("legacy widget API", () => {
 		expect(handler).toHaveBeenCalledWith({
 			cause: "Rejected",
 			response: { status_code: 403, reason_phrase: "Forbidden" },
-			client,
 		});
 	});
 
-	it("forwards connecting, connected and disconnected with the client", () => {
+	it("forwards connecting, connected and disconnected without the client", () => {
 		const { client, widget } = setup();
 		const calls: [string, unknown][] = [];
 		for (const name of ["connecting", "connected", "disconnected"]) {
@@ -227,10 +226,25 @@ describe("legacy widget API", () => {
 		client.emit("disconnected", { code: 1006, reason: "gone" });
 
 		expect(calls).toEqual([
-			["connecting", { client }],
-			["connected", { client }],
-			["disconnected", { code: 1006, reason: "gone", client }],
+			["connecting", {}],
+			["connected", {}],
+			["disconnected", { code: 1006, reason: "gone" }],
 		]);
+	});
+
+	// The client carries the SIP password (CTCW-AU3-002).
+	it("never emits the client object on UA events", () => {
+		const { client, widget } = setup();
+		const handler = vi.fn();
+		const names = ["connecting", "connected", "disconnected", "registrationFailed"];
+		for (const name of names) widget.on(name, handler);
+
+		for (const name of names) client.emit(name, { cause: "x" });
+
+		expect(handler).toHaveBeenCalledTimes(names.length);
+		for (const [payload] of handler.mock.calls) {
+			expect(payload).not.toHaveProperty("client");
+		}
 	});
 
 	it("does not subscribe to the client's error event", () => {

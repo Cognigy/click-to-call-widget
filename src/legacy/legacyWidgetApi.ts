@@ -13,7 +13,8 @@ export interface LegacyWidgetApi {
 	on(event: string, handler: Handler): void;
 }
 
-// UA-level events the old SipClient re-emitted as `{ ...data, client }`.
+// UA-level events the old SipClient re-emitted. `client` is no longer
+// included: it carried the SIP password (CTCW-AU3-002).
 const CLIENT_EVENTS = ["connecting", "connected", "disconnected", "registrationFailed"] as const;
 
 // Integrator code must never break the widget.
@@ -203,7 +204,7 @@ class LegacyWidget extends Emitter implements LegacyWidgetApi {
 		// Without WebRTC there is no client: handlers can be added but never fire.
 		if (!client) return;
 		for (const name of CLIENT_EVENTS) {
-			client.on(name, (data?: object) => this.emit(name, { ...data, client }));
+			client.on(name, (data?: object) => this.emit(name, { ...data }));
 		}
 		client.on("sessionCreated", (session) => {
 			this.current?._detach();
