@@ -277,4 +277,56 @@ describe("useSip", () => {
 		expect(mockStop).toHaveBeenCalled();
 		expect(mockPause).toHaveBeenCalled();
 	});
+
+	describe("addExternalListener", () => {
+		it("attaches a listener registered before the client exists, and re-attaches it to a recreated client", () => {
+			// No wsUri yet: no client is created on mount.
+			(useWebrtcContext as any).mockReturnValue({ endpointSettings: { sipConnectivityInfo: {} } });
+
+			const mockOn1 = vi.fn();
+			(SipClient as any).mockImplementationOnce(() => ({ start: vi.fn(), on: mockOn1, stop: vi.fn() }));
+
+			const { result, rerender } = renderHook(() => useSip());
+			const handler = vi.fn();
+			result.current.addExternalListener("newRTCSession", handler);
+
+			// The endpoint config loads: first client is created, picks up the listener.
+			(useWebrtcContext as any).mockReturnValue(mockConfig);
+			rerender();
+			expect(mockOn1).toHaveBeenCalledWith("newRTCSession", handler);
+
+			// The SIP settings change: a second client is created, and still gets the listener.
+			const mockOn2 = vi.fn();
+			(SipClient as any).mockImplementationOnce(() => ({ start: vi.fn(), on: mockOn2, stop: vi.fn() }));
+			(useWebrtcContext as any).mockReturnValue({
+				...mockConfig,
+				endpointSettings: {
+					...mockConfig.endpointSettings,
+					sipConnectivityInfo: { ...mockConfig.endpointSettings.sipConnectivityInfo, wsUri: "wss://other.example" },
+				},
+			});
+			rerender();
+
+			expect(mockOn2).toHaveBeenCalledWith("newRTCSession", handler);
+		});
+
+		it("does not recreate or stop the client for a cosmetic config change", () => {
+			const mockStop = vi.fn();
+			(SipClient as any).mockImplementation(() => ({ start: vi.fn(), on: vi.fn(), stop: mockStop }));
+
+			const { rerender } = renderHook(() => useSip());
+			expect(SipClient).toHaveBeenCalledTimes(1);
+
+			// A field the client isn't built from (e.g. label) changes -- as a cosmetic
+			// updateSettings() would -- so the client must not be rebuilt or stopped.
+			(useWebrtcContext as any).mockReturnValue({
+				...mockConfig,
+				endpointSettings: { ...mockConfig.endpointSettings, webrtcWidgetConfig: { label: "New label" } },
+			});
+			rerender();
+
+			expect(SipClient).toHaveBeenCalledTimes(1);
+			expect(mockStop).not.toHaveBeenCalled();
+		});
+	});
 });

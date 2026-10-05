@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { render } from "preact";
 import App from "./components/WebrtcWidget.tsx";
-import type { IOptions } from "./types/index.ts";
+import type { IOptions, IWidgetInstance } from "./types/index.ts";
 
 const ASYNC_DELAY = process.env.NODE_ENV === "development" ? 500 : 0;
 
@@ -23,20 +23,20 @@ const destroyWebRTCWidget = () => {
 	}
 };
 
-const initWebRTCWidget = async (token: string, options?: IOptions, callback?: (webrtcWidget: typeof App) => void) => {
+const initWebRTCWidget = async (token: string, options?: IOptions, callback?: (webrtcWidget: IWidgetInstance) => void) => {
 	destroyWebRTCWidget();
 
-	return new Promise((resolve) => {
+	return new Promise<IWidgetInstance>((resolve) => {
 		const webrtcWidget = document.createElement("div");
 		document.body.appendChild(webrtcWidget);
 		currentWidgetContainer = webrtcWidget;
 
 	const newOptions: IOptions = options ? { ...options } : {};
 
-	let webrtcWidgetRef : typeof App | null = null;
+	let webrtcWidgetRef : IWidgetInstance | null = null;
 
 	setTimeout(async() => {
-		render(<App mainRef={(ref: typeof App) => {
+		render(<App mainRef={(ref: IWidgetInstance) => {
 			webrtcWidgetRef = ref;
 		}} token={token} options={newOptions} />, webrtcWidget);
 		while (!webrtcWidgetRef) {
