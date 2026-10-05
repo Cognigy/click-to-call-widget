@@ -33,13 +33,16 @@ const VoiceBotWidget = forwardRef<IWidgetInstance>((_, ref) => {
 
 	const serverConfig = config?.endpointSettings?.webrtcWidgetConfig;
 	const overrides = config?.options?.widgetOverrides;
+	const runtimeOverrides = config?.overrides?.webrtcWidgetConfig;
 	const isDemoMode = config?.options?.demoMode === true;
 	const settingsTranscriptionEnabled = config?.settings?.transcription?.enabled;
 
+	// updateSettings() wins over init-time widgetOverrides.
 	const widgetConfig = useMemo(() => ({
 		...serverConfig,
 		...overrides,
-	}), [serverConfig, overrides]);
+		...runtimeOverrides,
+	}), [serverConfig, overrides, runtimeOverrides]);
 
 	const isTranscriptionEnabled = settingsTranscriptionEnabled || widgetConfig.transcription?.enabled;
 

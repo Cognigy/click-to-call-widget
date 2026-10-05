@@ -116,6 +116,8 @@ interface IWebrtcContext {
 	endpointSettings: IEndpointSettings;
 	options?: IOptions;
 	settings: ISettings;
+	/** Accumulated updateSettings() calls. */
+	overrides?: IUpdateableSettings;
 }
 enum ActionTypes {
 	SET_DATA = "SET_DATA",

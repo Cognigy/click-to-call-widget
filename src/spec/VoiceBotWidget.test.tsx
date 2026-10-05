@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import VoiceBotWidget from "../components/VoiceBotWidget";
 import { WebrtcContextProvider } from "../components/WebrtcContextProvider";
 import * as WebrtcContext from "../components/WebrtcContextProvider";
@@ -613,6 +613,23 @@ describe("VoiceBotWidget", () => {
 				type: "UPDATE_SETTINGS",
 				payload: { webrtcWidgetConfig: { tagline: "New tagline" } },
 			});
+		});
+
+		it("a runtime update wins over an init-time widgetOverrides for the same field", async () => {
+			vi.restoreAllMocks();
+			const ref = { current: null as any };
+
+			render(
+				<WebrtcContextProvider token="/cfg-token" options={{ widgetOverrides: { tagline: "Initial" } }}>
+					<VoiceBotWidget ref={ref} />
+				</WebrtcContextProvider>
+			);
+			expect(await screen.findByText("Initial")).toBeInTheDocument();
+
+			act(() => ref.current.updateSettings({ webrtcWidgetConfig: { tagline: "Updated" } }));
+
+			expect(await screen.findByText("Updated")).toBeInTheDocument();
+			expect(screen.queryByText("Initial")).toBeNull();
 		});
 	});
 
