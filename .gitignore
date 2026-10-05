@@ -34,5 +34,5 @@ public/demo-audio/
 requirements/
 scripts/
 
-# Real credentials (use mock.example.json as template)
+# Local override of src/mocks/mock.example.json
 src/mocks/mock.json

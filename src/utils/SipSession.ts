@@ -8,7 +8,6 @@ import type { TExtendedRTCSession } from "../types";
 import * as sounds from "../constants/sounds";
 
 export class SipSession extends events.EventEmitter {
-	private _onSession: (rtcSession: TExtendedRTCSession) => void;
 	private _pcConfig?: RTCConfiguration;
 	private _id: string;
 	private _startTime: Date;
@@ -28,9 +27,6 @@ export class SipSession extends events.EventEmitter {
 	constructor(rtcSession: TExtendedRTCSession, options: SessionOptions) {
 		super();
 		this.setMaxListeners(Number.POSITIVE_INFINITY);
-
-		// Save given onSession handler for received INVITE with Replaces.
-		this._onSession = options.onSession;
 
 		// Save given RTCPeerConnection config.
 		this._pcConfig = options.pcConfig;
