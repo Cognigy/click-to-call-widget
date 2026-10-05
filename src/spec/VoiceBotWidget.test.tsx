@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import VoiceBotWidget from "../components/VoiceBotWidget";
 import { WebrtcContextProvider } from "../components/WebrtcContextProvider";
 import * as WebrtcContext from "../components/WebrtcContextProvider";
@@ -137,6 +137,7 @@ describe("VoiceBotWidget", () => {
 				startCall: mockStartCall,
 				endCall: vi.fn(),
 				userAgentRef: mockUserAgentRef,
+				addExternalListener: vi.fn(),
 			}),
 		}));
 
@@ -567,6 +568,68 @@ describe("VoiceBotWidget", () => {
 			onDisconnected();
 
 			expect(mockUserAgentRef.current.stop).toHaveBeenCalled();
+		});
+	});
+
+	describe("VoiceBotWidget — updateSettings imperative handle", () => {
+		it("exposes updateSettings on the widget ref", async () => {
+			const ref = { current: null as any };
+
+			vi.spyOn(WebrtcContext, "useWebrtcContext").mockReturnValue({ ...mockData, options: mockOptions } as any);
+
+			render(
+				<WebrtcContextProvider token="test-token">
+					<VoiceBotWidget ref={ref} />
+				</WebrtcContextProvider>
+			);
+
+			await waitFor(() => {
+				expect(ref.current).not.toBeNull();
+			});
+
+			expect(typeof ref.current.updateSettings).toBe("function");
+		});
+
+		it("updateSettings dispatches UPDATE_SETTINGS with the payload", async () => {
+			const dispatchSpy = vi.fn();
+			vi.spyOn(WebrtcContext, "useWebrtcDispatch").mockReturnValue(dispatchSpy);
+			vi.spyOn(WebrtcContext, "useWebrtcContext").mockReturnValue({ ...mockData, options: mockOptions } as any);
+
+			const ref = { current: null as any };
+
+			render(
+				<WebrtcContextProvider token="test-token">
+					<VoiceBotWidget ref={ref} />
+				</WebrtcContextProvider>
+			);
+
+			await waitFor(() => {
+				expect(ref.current).not.toBeNull();
+			});
+
+			ref.current.updateSettings({ webrtcWidgetConfig: { tagline: "New tagline" } });
+
+			expect(dispatchSpy).toHaveBeenCalledWith({
+				type: "UPDATE_SETTINGS",
+				payload: { webrtcWidgetConfig: { tagline: "New tagline" } },
+			});
+		});
+
+		it("a runtime update wins over an init-time widgetOverrides for the same field", async () => {
+			vi.restoreAllMocks();
+			const ref = { current: null as any };
+
+			render(
+				<WebrtcContextProvider token="/cfg-token" options={{ widgetOverrides: { tagline: "Initial" } }}>
+					<VoiceBotWidget ref={ref} />
+				</WebrtcContextProvider>
+			);
+			expect(await screen.findByText("Initial")).toBeInTheDocument();
+
+			act(() => ref.current.updateSettings({ webrtcWidgetConfig: { tagline: "Updated" } }));
+
+			expect(await screen.findByText("Updated")).toBeInTheDocument();
+			expect(screen.queryByText("Initial")).toBeNull();
 		});
 	});
 

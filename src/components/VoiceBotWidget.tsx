@@ -9,8 +9,9 @@ import TranscriptSection from "./TranscriptSection";
 import { CallDurationDisplay } from "./CallDurationDisplay";
 import type { TranscriptMessage } from "./TranscriptDisplay";
 import { getLocalStore, shouldEnableEndCall, callReducer, initialCallState } from "../helpers";
-import { CallActionType } from "../types";
-import { useWebrtcContext } from "./WebrtcContextProvider";
+import { CallActionType, ActionTypes } from "../types";
+import type { IUpdateableSettings, IWidgetInstance } from "../types";
+import { useWebrtcContext, useWebrtcDispatch } from "./WebrtcContextProvider";
 import type { SipSession } from "../utils/SipSession";
 
 import { CALL_PRIVACY_PERMISSION_KEY } from "../constants/constants";
@@ -19,9 +20,10 @@ import useSip from "../hooks/useSip";
 import useDemoCall from "../hooks/useDemoCall";
 import { VoiceBotWidgetContainer } from "./VoiceBotWidget.styles";
 
-const VoiceBotWidget = forwardRef((_, ref) => {
+const VoiceBotWidget = forwardRef<IWidgetInstance>((_, ref) => {
 	const config = useWebrtcContext();
-	const { startCall, userAgentRef } = useSip();
+	const webrtcDispatch = useWebrtcDispatch();
+	const { startCall, userAgentRef, addExternalListener } = useSip();
 
 	const [state, dispatch] = useReducer(callReducer, initialCallState);
 	const [showPrivacyDialog, setShowPrivacyDialog] = useState(false);
@@ -31,13 +33,16 @@ const VoiceBotWidget = forwardRef((_, ref) => {
 
 	const serverConfig = config?.endpointSettings?.webrtcWidgetConfig;
 	const overrides = config?.options?.widgetOverrides;
+	const runtimeOverrides = config?.overrides?.webrtcWidgetConfig;
 	const isDemoMode = config?.options?.demoMode === true;
 	const settingsTranscriptionEnabled = config?.settings?.transcription?.enabled;
 
+	// updateSettings() wins over init-time widgetOverrides.
 	const widgetConfig = useMemo(() => ({
 		...serverConfig,
 		...overrides,
-	}), [serverConfig, overrides]);
+		...runtimeOverrides,
+	}), [serverConfig, overrides, runtimeOverrides]);
 
 	const isTranscriptionEnabled = settingsTranscriptionEnabled || widgetConfig.transcription?.enabled;
 
@@ -297,8 +302,13 @@ const VoiceBotWidget = forwardRef((_, ref) => {
 		);
 	}
 
-	const eventHandler = (event: string, handler: (...args: any[]) => void) => {
-		userAgentRef.current?.on(event, handler);
+	// `on()` goes through useSip's listener registry rather than straight to the
+	// current client: the client may not exist yet (it is created only once the
+	// endpoint config has loaded), and is recreated when the SIP settings change.
+	const eventHandler = addExternalListener;
+
+	const updateSettings = (settings: IUpdateableSettings) => {
+		webrtcDispatch({ type: ActionTypes.UPDATE_SETTINGS, payload: settings });
 	};
 
 	useImperativeHandle(
@@ -306,9 +316,10 @@ const VoiceBotWidget = forwardRef((_, ref) => {
 		() => {
 			return {
 				on: eventHandler,
+				updateSettings,
 			};
 		},
-		[eventHandler]
+		[eventHandler, webrtcDispatch]
 	);
 
 	const { isCalling, isCallAnswered, isMuted, sessionStatus, transcriptMessages, remoteStream, localStream } = state;
