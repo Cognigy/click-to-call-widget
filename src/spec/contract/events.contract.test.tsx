@@ -17,13 +17,12 @@ vi.mock("jssip", async () => (await import("../fakes/fakeJssip")).fakeJssipModul
 const PRIVACY_KEY = "call-privacy-permission-granted";
 const TIMEOUT = { timeout: 3000 };
 
-// Session objects the widget hands to `newRTCSession` handlers (SipSession-like).
 type DeliveredSession = {
 	on: (event: string, handler: (...args: any[]) => void) => void;
 	sendInfo: (text: string, data: Record<string, unknown>) => void;
 };
 
-/** Registers a `newRTCSession` handler before the call and records what it delivers. */
+/** Records what a `newRTCSession` handler receives. */
 function collectSessions(widget: {
 	on: (e: string, h: (...a: any[]) => void) => void;
 }) {
@@ -160,7 +159,7 @@ describe("event contract", () => {
 	});
 
 	it("registrationFailed exposes response.status_code", async () => {
-		// JsSIP emits registrationFailed instead of registered, so never register.
+		// JsSIP emits registrationFailed instead of registered.
 		FakeUA.autoRegister = false;
 		serveConfig(legacyConfig());
 		const widget = await mountWidget({ userId: "u-1" });
@@ -169,7 +168,6 @@ describe("event contract", () => {
 		widget.on("registrationFailed", handler);
 		widget.on("connected", connected);
 		await clickCall();
-		// Emit only once the UA is connected and the widget shows the calling state.
 		await waitFor(() => {
 			expect(connected).toHaveBeenCalled();
 			expect(screen.getByTestId("cognigy-end-call-button")).toBeInTheDocument();
@@ -218,23 +216,19 @@ describe("timeout and disconnect contract", () => {
 		FakeUA.autoSession = false;
 		serveConfig(legacyConfig());
 		await mountWidget({ userId: "u-1" });
-		// Config fetch is done and the call button is up before the clock is faked.
 		await screen.findByTestId("cognigy-call-button");
 
 		vi.useFakeTimers({ shouldAdvanceTime: true });
 		await clickCall();
 		await waitFor(() => expect(lastUA().start).toHaveBeenCalled(), TIMEOUT);
 
-		// The INVITE goes out after the lead-in but no session ever arrives.
 		await vi.advanceTimersByTimeAsync(1_500);
 		expect(lastUA().call).toHaveBeenCalledTimes(1);
 
-		// ~9s after the click: still connecting, nothing stopped.
 		await vi.advanceTimersByTimeAsync(7_500);
 		expect(lastUA().stop).not.toHaveBeenCalled();
 		expect(screen.queryByTestId("cognigy-call-button")).not.toBeInTheDocument();
 
-		// Past 10s: the setup timeout fires.
 		await vi.advanceTimersByTimeAsync(1_500);
 		vi.useRealTimers();
 
@@ -248,7 +242,6 @@ describe("timeout and disconnect contract", () => {
 		await clickCall();
 		await waitFor(() => expect(lastUA().start).toHaveBeenCalled(), TIMEOUT);
 
-		// Still inside the 1.2s ringing lead-in.
 		expect(lastUA().call).not.toHaveBeenCalled();
 		lastUA().emit("disconnected", {});
 		await new Promise((r) => setTimeout(r, 100));
@@ -257,7 +250,6 @@ describe("timeout and disconnect contract", () => {
 			document.querySelector(".webrtc_widget_tagline")
 		).toHaveTextContent("Connecting...");
 		expect(screen.queryByTestId("cognigy-call-button")).not.toBeInTheDocument();
-		// The call carried on after the ignored disconnect.
 		await waitFor(() => expect(lastUA().call).toHaveBeenCalled(), TIMEOUT);
 	});
 

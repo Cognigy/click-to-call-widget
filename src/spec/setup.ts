@@ -6,7 +6,7 @@ import { setupServer } from "msw/node";
 import { transferableAbortController } from "node:util";
 import { handlers } from "../mocks/handlers";
 
-// jsdom's AbortController is rejected by Node's fetch (undici); use Node's own.
+// Node's fetch rejects jsdom's AbortController; use Node's own.
 const NodeAbortController = transferableAbortController()
 	.constructor as typeof AbortController;
 globalThis.AbortController = NodeAbortController;
@@ -20,14 +20,13 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 afterEach(() => cleanup());
 
-// Emotion's CacheProvider is a React context and cannot render under preact.
+// Emotion's CacheProvider is a React context; it cannot render under preact.
 vi.mock("@emotion/react", async (importOriginal) => ({
 	...(await importOriginal<typeof import("@emotion/react")>()),
 	CacheProvider: ({ children }: { children: unknown }) => children,
 }));
 
-// MUI icons are React components and don't render under preact in vitest
-// (react is only aliased for inlined deps); stub them like the other specs do.
+// MUI icons are React components and don't render under preact; stub them.
 vi.mock("@mui/icons-material/Phone", async () => {
 	const { h } = await import("preact");
 	return { default: () => h("span", { "data-icon": "Phone" }) };
@@ -45,8 +44,7 @@ vi.mock("@mui/icons-material/MicOff", async () => {
 	return { default: () => h("span", { "data-icon": "MicOff" }) };
 });
 
-// Newer Node versions ship an experimental global `localStorage` that shadows
-// jsdom's and is undefined without --localstorage-file; fall back to in-memory.
+// Newer Node's experimental `localStorage` shadows jsdom's; fall back to in-memory.
 if (typeof globalThis.localStorage === "undefined") {
 	const store = new Map<string, string>();
 	vi.stubGlobal("localStorage", {
@@ -62,7 +60,7 @@ if (typeof globalThis.localStorage === "undefined") {
 }
 afterEach(() => localStorage.clear());
 
-// Browser APIs jsdom lacks; enough for the widget to run against a fake JsSIP.
+// Browser APIs jsdom lacks.
 class MediaStreamStub {
 	private tracks: unknown[];
 	constructor(tracks: unknown[] = []) {

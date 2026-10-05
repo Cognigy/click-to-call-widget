@@ -11,7 +11,7 @@ export interface LegacyWidget {
 
 const WS_URI = "wss://sbc.example.com:8443";
 
-// Built inline (not from the gitignored mock.json) so the contract stays self-contained.
+// Built inline so the contract does not depend on a fixture.
 function baseConfig(
 	sipConnectivityInfo: Record<string, unknown>,
 	endpointId?: string
@@ -78,8 +78,7 @@ export function serveConfig(config: unknown): void {
 
 export async function mountWidget(options?: IOptions): Promise<LegacyWidget> {
 	const widget = (await window.initWebRTCWidget("/cfg-token", options)) as LegacyWidget;
-	// Let Preact run the effects that build the SIP client; an init that resolves
-	// right after the config load would otherwise let the first click beat them.
+	// Lets effects build the SIP client before the first click.
 	await new Promise((resolve) => setTimeout(resolve, 150));
 	return widget;
 }
@@ -89,8 +88,7 @@ export async function clickCall() {
 }
 
 export async function clickEnd() {
-	// Disabled until the session rings (a click on a disabled button is a silent
-	// no-op); re-query so a re-rendered button is never clicked stale.
+	// A click on the disabled button is a silent no-op, so wait until it is enabled.
 	let button!: HTMLElement;
 	await waitFor(() => {
 		button = screen.getByTestId("cognigy-end-call-button");

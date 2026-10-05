@@ -26,8 +26,7 @@ export class FakeRTCSession extends EventEmitter {
 		return this._ended;
 	}
 
-	// Like JsSIP: throws on an ended session; an unanswered outgoing session is
-	// canceled (`failed`, cause Canceled), only an established one ends (`ended`).
+	// Like JsSIP: unanswered outgoing sessions fail (Canceled), established ones end.
 	terminate = vi.fn((_opts?: unknown) => {
 		if (this._ended) {
 			throw new Error("InvalidStateError: session is terminated");
@@ -43,8 +42,7 @@ export class FakeRTCSession extends EventEmitter {
 			});
 		}
 	});
-	// Like JsSIP: emit only when a requested track actually changes state, with
-	// per-track flags of what changed.
+	// Like JsSIP: emit only when a track actually changes.
 	mute = vi.fn(
 		(
 			opts: { audio?: boolean; video?: boolean } = { audio: true, video: false }
@@ -103,7 +101,7 @@ export class FakeRTCSession extends EventEmitter {
 export class FakeUA extends EventEmitter {
 	static instances: FakeUA[] = [];
 	static autoSession = true;
-	// false: start() connects but never registers (registrationFailed replaces registered in JsSIP).
+	// false: connects but never registers.
 	static autoRegister = true;
 
 	config: Record<string, any>;
@@ -115,7 +113,7 @@ export class FakeUA extends EventEmitter {
 		FakeUA.instances.push(this);
 	}
 
-	/** performance.now() of every call() — lets tests assert the INVITE lead-in. */
+	/** performance.now() of every call(), to assert the INVITE lead-in. */
 	callTimestamps: number[] = [];
 
 	private _started = false;
@@ -147,9 +145,8 @@ export class FakeUA extends EventEmitter {
 		}
 	});
 
-	// Like JsSIP: terminates live sessions, and only a started UA disconnects; the
-	// widget calls stop() from its own "disconnected" handler, so an unguarded emit
-	// would recurse forever.
+	// Like JsSIP: only a started UA disconnects (the widget calls stop() from its
+	// "disconnected" handler, so an unguarded emit would recurse).
 	stop = vi.fn(() => {
 		for (const session of this.sessions) {
 			if (!session.isEnded()) session.terminate();

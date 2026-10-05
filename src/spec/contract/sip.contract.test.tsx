@@ -174,7 +174,7 @@ describe("SIP contract", () => {
 		);
 	});
 
-	// No transfer UI; Replaces would auto-answer with the mic (CTCW-AC3-001/-002).
+	// No transfer UI; Replaces would auto-answer the mic (CTCW-AC3-001/-002).
 	it.each(["refer", "replaces"])("rejects an inbound %s request", async (kind) => {
 		serveConfig(legacyConfig());
 		await mountWidget({ userId: "u-1" });
@@ -206,7 +206,6 @@ describe("SIP contract", () => {
 		);
 		await mountWidget({ userId: "u-1" });
 		await clickCall();
-		// Past the 1.2s ringing lead-in, when the INVITE would have been placed.
 		await new Promise((resolve) => setTimeout(resolve, 2500));
 
 		expect(FakeUA.instances).toHaveLength(0);
