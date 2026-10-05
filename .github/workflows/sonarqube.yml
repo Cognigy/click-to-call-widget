@@ -1,0 +1,44 @@
+name: "CI | click-to-call-widget Sonar"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  sonarqube:
+    name: "click-to-call-widget - SonarQube Analysis"
+    # Fork PRs do not get SONAR_TOKEN, so skip the whole job rather than report a green
+    # check that analysed nothing.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # An empty host would leave the scanner falling back to its own default server, and
+      # NICE_SONAR_TOKEN would go there. Fail loudly instead.
+      - name: Check the Sonar host is configured
+        env:
+          SONAR_HOST_URL: ${{ vars.NICE_SONAR_HOST_URL }}
+        run: |
+          [ -n "$SONAR_HOST_URL" ] || {
+            echo "::error::NICE_SONAR_HOST_URL is not set for this repository."
+            exit 1
+          }
+      - uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.NICE_SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.NICE_SONAR_HOST_URL }}
+      - name: Link the dashboard
+        run: |
+          echo "[SonarQube dashboard](${{ vars.NICE_SONAR_HOST_URL }}/dashboard?id=com.nice.cognigy-echo-click-to-call-widget)" >> "$GITHUB_STEP_SUMMARY"
