@@ -4,22 +4,12 @@ import { ensureWidgetFontLoaded } from "../helpers";
 import { EMOTION_CACHE_KEY, WIDGET_FONT_HREF } from "../constants/constants";
 
 /**
- * CGY-36067 -- host-page hygiene when the widget shares a page with Cognigy
- * Webchat (`webchat3.js`).
+ * CGY-36067 host-page hygiene vs. Cognigy Webchat (webchat3.js).
  *
- * KNOWN TEST-ENVIRONMENT LIMITATION: the `<style data-emotion>` tags are not
- * asserted here. `@preact/preset-vite` rewrites `react` to `preact/compat` for
- * the build, but that rewrite does not reach dependencies under vitest, so
- * `@emotion/react` resolves the real `react` in this environment and its
- * `CacheProvider` comes back as a React context object rather than a Preact
- * component -- rendering `<App>` at all fails here. Neither `resolve.alias`
- * nor `test.server.deps.inline` moved it, so the cache wiring is verified
- * against the built bundle instead:
- *
- *   $ npm run build
- *   $ grep -c 'key:"cognigy-webrtc"' dist/webRTCWidget.js   # -> 1
- *
- * What is asserted below is the environment-independent part.
+ * The <style data-emotion> tags aren't asserted here: under vitest, @emotion/react resolves
+ * real react (preact/compat's rewrite doesn't reach deps), so CacheProvider can't render <App>.
+ * Verify the cache key against the built bundle instead:
+ *   $ npm run build && grep -c 'key:"cognigy-webrtc"' dist/webRTCWidget.js   # -> 1
  */
 describe("host-page hygiene", () => {
 	beforeEach(() => {
@@ -29,8 +19,7 @@ describe("host-page hygiene", () => {
 	});
 
 	it("does not use Emotion's default cache key", () => {
-		// `css` is the key webchat3.js claims; sharing it means the two caches
-		// adopt each other's <style> tags.
+		// webchat3.js also claims "css"; sharing it means the two caches adopt each other's tags.
 		expect(EMOTION_CACHE_KEY).not.toBe("css");
 		expect(EMOTION_CACHE_KEY).toBe("cognigy-webrtc");
 	});

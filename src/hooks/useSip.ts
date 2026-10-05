@@ -16,10 +16,8 @@ export default function useSip() {
 	const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const ringingAudioRef = useRef<HTMLAudioElement | null>(null);
 
-	// Listeners registered by the embedder through the widget's public `on()`.
-	// Kept here, not only on the client, because the client does not exist until
-	// the endpoint config has loaded and is replaced whenever the SIP settings
-	// change -- a listener attached to one client only would be silently lost.
+	// Kept outside the client: the client doesn't exist pre-config and is replaced on settings
+	// changes, so a listener attached only to one client instance would silently drop.
 	const externalListenersRef = useRef<Array<[string, (...args: any[]) => void]>>([]);
 
 	const addExternalListener = useCallback(
@@ -127,10 +125,8 @@ export default function useSip() {
 	};
 
 
-	// Only the fields the SIP client is built from. Depending on the whole
-	// context object recreated the client -- and ran the cleanup's `ua.stop()`,
-	// which terminates any active call -- on every `updateSettings()`, even a
-	// label change.
+	// Only the fields the client is built from: depending on the whole context recreated the
+	// client (and ran cleanup's ua.stop(), killing any active call) on every settings change.
 	const sipInfo = config?.endpointSettings?.sipConnectivityInfo;
 	const wsUri = sipInfo?.wsUri;
 	const realm = sipInfo?.realm;

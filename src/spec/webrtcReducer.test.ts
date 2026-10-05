@@ -79,8 +79,7 @@ describe("webrtcReducer — UPDATE_SETTINGS", () => {
 	});
 
 	it("does NOT update webrtcWidgetConfig.active, even for JS callers that bypass the type", () => {
-		// action is typed `any`, so this models an untyped JS caller sending the
-		// protected field; the reducer itself must strip it, not just the type.
+		// action is `any`: models an untyped JS caller sending the protected field anyway.
 		const result = webrtcReducer(baseState, {
 			type: ActionTypes.UPDATE_SETTINGS,
 			payload: { webrtcWidgetConfig: { active: false, tagline: "X" } },

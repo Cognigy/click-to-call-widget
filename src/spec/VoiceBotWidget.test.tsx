@@ -178,12 +178,8 @@ describe("VoiceBotWidget", () => {
 		);
 	};
 
-	// CGY-36067: `useImperativeHandle` used to sit *below* the
-	// `!widgetConfig?.active` and `showPrivacyDialog` early returns. Because
-	// `widgetConfig` arrives from an async fetch, the first render always took
-	// the inactive branch and skipped the hook -- so `mainRef` was never
-	// fulfilled and `initWebRTCWidget()` hung. These pin the hook above both
-	// returns.
+	// CGY-36067: the hook used to sit below the active/showPrivacyDialog early returns, so the
+	// async-loaded config's first (inactive) render always skipped it and init() hung.
 	describe("imperative handle (CGY-36067)", () => {
 		const renderWithRef = (context: Partial<IWebrtcContext> = {}) => {
 			const ref = { current: null as unknown };
@@ -241,8 +237,7 @@ describe("VoiceBotWidget", () => {
 
 			expect(ref.current).not.toBeNull();
 
-			// Clicking call flips `showPrivacyDialog`, which takes the other
-			// early return. The handle must survive that render.
+			// Clicking call flips showPrivacyDialog, taking the other early return.
 			fireEvent.click(screen.getByTestId("cognigy-call-button"));
 			await waitFor(() =>
 				expect(screen.getByTestId("cognigy-privacy-dialog")).toBeInTheDocument()

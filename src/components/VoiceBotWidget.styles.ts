@@ -20,18 +20,9 @@ export const VoiceBotWidgetContainer = styled.div<{ theme: Theme }>`
 	}
 
 	/*
-	 * The transcript panel sits above the pill and the pill stays anchored to
-	 * the bottom of the stack.
-	 *
-	 * This is done with normal flow (flex column, bottom-aligned) rather than
-	 * "position: absolute; bottom: 100%" on the transcript. The absolute
-	 * version floated the panel upward *out of* the stack, which is invisible
-	 * as a problem on a tall page -- there is always room above -- but renders
-	 * the transcript entirely outside the visible area in a constrained
-	 * container such as an iframe or a sidebar, where there is nothing above
-	 * y=0. Because .webrtc_widget_outer_wrapper is fixed to "bottom", letting
-	 * the stack grow in flow makes it extend upward anyway, so the appearance
-	 * on a normal page is unchanged. (CGY-36067)
+	 * Flex column + bottom-align instead of "position: absolute; bottom: 100%": the absolute
+	 * version floated the transcript out of the stack entirely in a constrained container
+	 * (iframe/sidebar) with nothing above y=0. (CGY-36067)
 	 */
 	.webrtc_widget_content_stack {
 		position: relative;
@@ -59,11 +50,7 @@ export const VoiceBotWidgetContainer = styled.div<{ theme: Theme }>`
 		border-radius: 12px;
 		box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
 		border: none;
-		/*
-		 * The panel's lower 80px tucks behind the pill. As an absolute box that
-		 * was "bottom: calc(100% - 80px)"; in flow the same overlap is a
-		 * negative bottom margin.
-		 */
+		// Panel's lower 80px tucks behind the pill; negative margin replaces the old absolute offset.
 		padding-bottom: 80px;
 		margin-bottom: -80px;
 	}

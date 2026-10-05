@@ -283,18 +283,9 @@ const VoiceBotWidget = forwardRef<IWidgetInstance>((_, ref) => {
 		startCall();
 	};
 
-	// NOTE: `useImperativeHandle` must stay above every early return below.
-	// Preact hooks are positional, so skipping it on one render and running it
-	// on the next misaligns the hook list. It is also what fulfils `mainRef`
-	// (WidgetRoot forwards it once the config has loaded), and `widgetConfig`
-	// comes from an async fetch -- so while it sat below the
-	// `!widgetConfig?.active` return, the first render always skipped it and
-	// `initWebRTCWidget()` could hang forever waiting for a ref that never
-	// arrived.
-	//
-	// `on()` goes through useSip's listener registry rather than straight to
-	// the current client: the client may not exist yet, and is recreated when
-	// the SIP settings change.
+	// Must stay above the early returns below: hooks are positional, and this one fulfils mainRef,
+	// so skipping it on the first (pre-config) render hung initWebRTCWidget() waiting for a ref.
+	// on() goes through useSip's registry since the SIP client may not exist yet or gets recreated.
 	const eventHandler = addExternalListener;
 
 	const updateSettings = useCallback(

@@ -8,24 +8,15 @@ import type { IOptions, IWidgetInstance } from "../types/index.ts";
 export interface WidgetRootProps {
 	token: string;
 	options: IOptions;
-	/**
-	 * Receives the widget instance once the widget is actually usable: the
-	 * imperative handle exists AND the endpoint config has been applied.
-	 */
+	/** Fires once usable: imperative handle exists AND endpoint config applied. */
 	mainRef: (instance: IWidgetInstance | null) => void;
 	/** Receives the error when the endpoint config cannot be loaded. */
 	onError?: (error: Error) => void;
 }
 
-/**
- * The widget tree without the Emotion `CacheProvider` (see `WebrtcWidget.tsx`),
- * so its readiness contract can be tested under vitest.
- *
- * `useImperativeHandle` hands out the instance on the very first render, long
- * before the endpoint config arrives. Reporting it then would let the embedder
- * call `updateSettings()` into state that `SET_DATA` is about to replace, so
- * `mainRef` is held back until the config has loaded (CGY-36067).
- */
+// Excludes Emotion's CacheProvider (see WebrtcWidget.tsx) so this tree is testable under vitest.
+// mainRef is held back until config loads: reporting earlier would let the embedder call updateSettings()
+// into state that SET_DATA is about to replace (CGY-36067).
 export const WidgetRoot = ({ token, options, mainRef, onError }: WidgetRootProps) => {
 	const instanceRef = useRef<IWidgetInstance | null>(null);
 	const configLoadedRef = useRef(false);

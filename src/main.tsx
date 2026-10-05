@@ -6,12 +6,7 @@ import type { IOptions, IWidgetInstance } from "./types/index.ts";
 
 const ASYNC_DELAY = process.env.NODE_ENV === "development" ? 500 : 0;
 
-/**
- * Upper bound on how long `initWebRTCWidget()` waits for the widget to become
- * ready (mounted and endpoint config loaded) before rejecting. Generous enough
- * to cover a slow config fetch on a poor connection, short enough that an
- * embedding page is never left waiting indefinitely.
- */
+// Bounds how long init waits for mount + config load before rejecting, so a slow network never hangs the host page.
 const INIT_TIMEOUT_MS = 15_000;
 
 let currentWidgetContainer: HTMLElement | null = null;
@@ -28,13 +23,7 @@ declare global {
 	}
 }
 
-/**
- * Takes a container out of the page and forgets it, synchronously, and never
- * throws. The next `initWebRTCWidget()` must always start clean -- a container
- * left mounted *and* referenced by `currentWidgetContainer` is what made every
- * later init re-enter the same broken tree, so a bounded retry loop could
- * never recover and only a page reload helped.
- */
+// A container left mounted *and* referenced is what made every later init re-enter the same broken tree, unrecoverable without a reload.
 const detachContainer = (container: HTMLElement) => {
 	container.remove();
 	if (currentWidgetContainer === container) {
@@ -59,12 +48,7 @@ const teardownContainer = (container: HTMLElement) => {
 	detachContainer(container);
 };
 
-/**
- * Settles the `initWebRTCWidget()` call that is still waiting, if any. A newer
- * init (or a destroy) must not leave the older one's mount timer running: it
- * would render into the discarded container and resolve with a widget nothing
- * can ever tear down.
- */
+// Aborts a still-pending init so a newer init/destroy doesn't leave its mount timer running against a discarded container.
 let abortPendingInit: ((error: Error) => void) | null = null;
 
 const destroyWebRTCWidget = () => {
@@ -87,8 +71,7 @@ const reportUncaught = (error: Error) => {
 	});
 };
 
-// `async` so that nothing -- not even `document.body` being missing when the
-// script runs in <head> -- can throw synchronously: every failure is a rejection.
+// async so even a missing document.body (script run in <head>) can't throw synchronously -- every failure becomes a rejection.
 const initWebRTCWidget = async (
 	token: string,
 	options?: IOptions,
@@ -163,18 +146,12 @@ const initWebRTCWidget = async (
 
 		function fail(error: Error) {
 			if (settled) {
-				// The widget broke after init resolved. There is no promise left to
-				// reject, and the error boundary has already stopped rendering, so
-				// without this the widget would just vanish without a trace
-				// (production builds also drop console output).
+				// Already resolved: no promise left to reject, so report instead of letting it vanish silently.
 				reportUncaught(error);
 				return;
 			}
 			finish();
-			// Leave nothing behind for the next init() -- but unmount on a later
-			// tick: `fail` can be called from inside a render (the error boundary's
-			// componentDidCatch), and re-entering render() on the root that is
-			// still being rendered is not safe.
+			// Deferred: fail() can run inside componentDidCatch, and re-entering render() on that root isn't safe yet.
 			detachContainer(container);
 			setTimeout(() => unmountQuietly(container));
 			reject(error);

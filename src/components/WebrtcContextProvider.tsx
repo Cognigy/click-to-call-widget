@@ -135,8 +135,7 @@ export function webrtcReducer(state: any, action: any) {
 			};
 		case ActionTypes.UPDATE_SETTINGS: {
 			const { webrtcWidgetConfig, settings } = action.payload;
-			// `active` is excluded from IUpdateableSettings, but JS callers bypass
-			// TypeScript entirely, so strip it here too rather than trust the type alone.
+			// JS callers bypass the IUpdateableSettings type, so strip `active` at runtime too.
 			const { active: _active, ...safeWebrtcWidgetConfig } = webrtcWidgetConfig ?? {};
 			return {
 				...state,
@@ -186,17 +185,14 @@ export const WebrtcContextProvider = ({
 }) => {
 	const [state, dispatch] = useReducer(webrtcReducer, initialState);
 
-	// Read through refs so the fetch effect below does not re-run (and refetch)
-	// when a parent passes new callback identities.
+	// Refs so a new callback identity doesn't re-run (and refetch) the effect below.
 	const onConfigLoadedRef = useRef(onConfigLoaded);
 	const onConfigErrorRef = useRef(onConfigError);
 	onConfigLoadedRef.current = onConfigLoaded;
 	onConfigErrorRef.current = onConfigError;
 
 	useEffect(() => {
-		// The config fetch outlives a fast unmount (destroy + re-init, or an
-		// embedding page tearing the widget down). Without aborting it, the
-		// late `dispatch` lands on a component that is no longer mounted.
+		// Abort on unmount so a fast destroy + re-init doesn't dispatch into an unmounted component.
 		const controller = new AbortController();
 
 		fetch(urlWithToken, { signal: controller.signal })
@@ -215,8 +211,7 @@ export const WebrtcContextProvider = ({
 				onConfigLoadedRef.current?.();
 			})
 			.catch((e) => {
-				// Whatever an aborted request rejects with (AbortError in browsers,
-				// something else under some test interceptors), it is not a failure.
+				// An aborted request's rejection isn't a real failure.
 				if (controller.signal.aborted) return;
 				console.error("Failed to fetch WebRTC config:", e);
 				onConfigErrorRef.current?.(e instanceof Error ? e : new Error(String(e)));

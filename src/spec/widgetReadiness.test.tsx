@@ -7,19 +7,10 @@ import { WidgetRoot } from "../components/WidgetRoot";
 import mockData from "../mocks/mock.example.json";
 import type { IWidgetInstance } from "../types/index.ts";
 
-/**
- * Readiness contract of the real widget tree (CGY-36067 follow-up).
- *
- * Unlike initLifecycle.test.tsx, the tree is real except for the SIP client and
- * the MUI icons (which resolve real React under vitest), so this exercises the actual timing between the imperative handle,
- * the endpoint config fetch and SIP client creation -- the gap the mocked
- * tests could not see: the instance was handed out before the config had
- * loaded, so `on()` and `updateSettings()` called right after init were
- * silently lost.
- *
- * (`WidgetRoot` is `App` without Emotion's `CacheProvider`, which cannot render
- * under vitest -- see hostPageHygiene.test.tsx.)
- */
+// CGY-36067 follow-up: unlike initLifecycle.test.tsx, the tree is real (only SIP client + MUI
+// icons mocked), exercising the actual timing where the instance was handed out before config
+// loaded, silently dropping early on()/updateSettings() calls.
+// WidgetRoot is App without Emotion's CacheProvider, which can't render under vitest.
 
 const { sipClients, FakeSipClient } = vi.hoisted(() => {
 	// biome-ignore lint/style/noCommonJs: vi.hoisted runs before ESM imports are bound
@@ -153,8 +144,7 @@ describe("WidgetRoot readiness (CGY-36067)", () => {
 		server.use(http.get("*/example-token", () => HttpResponse.json(inactive)));
 		const { mainRef, onError } = renderRoot();
 
-		// A loaded-but-inactive endpoint is a valid state, not a failure: init
-		// must settle as ready (it used to hang forever), with the widget hidden.
+		// Loaded-but-inactive is a valid ready state, not a failure (it used to hang forever).
 		await readyInstance(mainRef);
 		expect(onError).not.toHaveBeenCalled();
 		expect(

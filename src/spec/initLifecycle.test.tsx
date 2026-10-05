@@ -4,25 +4,15 @@ import "../main";
 import App from "../components/WebrtcWidget.tsx";
 import type { IWidgetInstance } from "../types/index.ts";
 
-/**
- * Regression tests for CGY-36067.
- *
- * `initWebRTCWidget()` used to be unable to report failure at all: the promise
- * was created with only `resolve`, `render()` ran inside a `setTimeout` (so a
- * throw escaped as an uncaught exception rather than a rejection), and a
- * `while (!ref) await sleep(500)` loop spun forever whenever the widget never
- * fulfilled `mainRef`. A failed mount also left `currentWidgetContainer`
- * populated, so every later init re-entered the broken tree.
- *
- * `App` is mocked per-test so each mount behaviour can be driven directly.
- */
+// Regression tests for CGY-36067: init() previously had no way to reject (resolve-only promise,
+// a throw escaping a setTimeout, an infinite poll loop) and left a broken container on failure.
+// App is mocked per-test so each mount behaviour can be driven directly.
 vi.mock("../components/WebrtcWidget.tsx", () => ({
 	default: vi.fn(() => null),
 }));
 
 const mockedApp = vi.mocked(App) as unknown as ReturnType<typeof vi.fn>;
 
-/** Mount successfully, fulfilling `mainRef` the way the real widget does. */
 const mountsSuccessfully = () => {
 	mockedApp.mockImplementation(({ mainRef }: any) => {
 		mainRef?.({ on: vi.fn(), updateSettings: vi.fn() } as IWidgetInstance);
@@ -30,14 +20,12 @@ const mountsSuccessfully = () => {
 	});
 };
 
-/** Render throws, as it did when the Preact tree was in a bad state. */
 const throwsOnMount = (message = "boom") => {
 	mockedApp.mockImplementation(() => {
 		throw new Error(message);
 	});
 };
 
-/** Mounts, but reports that the endpoint config could not be loaded. */
 const configFailsToLoad = (message = "HTTP 404") => {
 	mockedApp.mockImplementation(({ onError }: any) => {
 		onError?.(new Error(message));
@@ -45,7 +33,7 @@ const configFailsToLoad = (message = "HTTP 404") => {
 	});
 };
 
-/** Renders fine but never fulfils `mainRef` (the `!active` early-return case). */
+// Mirrors the !active early-return case.
 const neverFulfilsRef = () => {
 	mockedApp.mockImplementation(() => null);
 };
@@ -81,10 +69,8 @@ describe("initWebRTCWidget lifecycle", () => {
 		expect(callback).toHaveBeenCalledWith(instance);
 	});
 
-	// NOTE: attach the rejection assertion *before* advancing timers. The
-	// promise rejects inside `advanceTimersByTimeAsync`, and a rejection with
-	// no handler attached by the end of that microtask turn is reported as an
-	// unhandled rejection even though the test later awaits it.
+	// Attach the rejection assertion before advancing timers, or the rejection is reported
+	// as unhandled before this test gets to await it.
 	it("rejects instead of throwing uncaught when the mount throws", async () => {
 		throwsOnMount("render exploded");
 		const promise = window.initWebRTCWidget("test-token");
@@ -183,7 +169,6 @@ describe("initWebRTCWidget lifecycle", () => {
 		await firstAssertion;
 		await expect(second).resolves.toHaveProperty("on");
 
-		// Only the second init ever rendered; the first one's mount timer was cancelled.
 		expect(mockedApp).toHaveBeenCalledTimes(1);
 		expect(document.body.children).toHaveLength(1);
 	});

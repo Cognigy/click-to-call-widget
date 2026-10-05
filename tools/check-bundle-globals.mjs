@@ -2,15 +2,9 @@
 /**
  * Fails if loading the built bundle adds globals beyond the public API.
  *
- * Customers load webRTCWidget.js with a classic <script>, so everything the
- * bundle declares at top level lands on `window` -- where any other script on
- * the page can overwrite it. That is how CGY-36067 happened: the bundle was
- * built unwrapped, leaked ~490 minified names including Preact's internal `_`,
- * and Webchat's lodash replaced `window._`.
- *
- * The bundle is injected through a real <script> element on purpose.
- * `window.eval()` or `require()` give the code its own scope and would hide
- * exactly the leak this check exists to catch.
+ * CGY-36067: an unwrapped build leaked ~490 minified names onto `window`,
+ * including Preact's internal `_`, which Webchat's lodash then overwrote.
+ * Loaded via a real <script> on purpose -- eval()/require() would hide the leak.
  *
  * Usage: node tools/check-bundle-globals.mjs [path/to/webRTCWidget.js]
  */
@@ -20,9 +14,7 @@ import { JSDOM } from "jsdom";
 const file = process.argv[2] ?? "dist/webRTCWidget.js";
 
 const PUBLIC_API = ["initWebRTCWidget", "destroyWebRTCWidget"];
-// esbuild's class-field helpers, emitted outside the IIFE for the current
-// build target. Uniquely named and semantically identical wherever they
-// appear, so harmless.
+// esbuild's class-field helpers, emitted outside the IIFE for this build target -- harmless.
 const TOLERATED = ["__defProp", "__defNormalProp", "__publicField"];
 const allowed = new Set([...PUBLIC_API, ...TOLERATED]);
 

@@ -94,13 +94,8 @@ export function callReducer(state: CallState, action: CallAction): CallState {
 	}
 }
 
-/**
- * Adds the widget's web font to <head>, at most once per page.
- *
- * Previously this appended a <link> to document.body on every mount with no
- * cleanup, so each destroy/re-init cycle stacked another duplicate onto the
- * host page.
- */
+// Previously appended a <link> on every mount with no cleanup/dedup, stacking a duplicate
+// onto the host page on each destroy/re-init cycle.
 export const ensureWidgetFontLoaded = (href: string) => {
 	if (typeof document === "undefined") return;
 	if (document.querySelector(`link[href="${href}"]`)) return;
