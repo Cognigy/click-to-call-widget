@@ -11,8 +11,9 @@ interface ClientSettings {
 
 interface Client {
 	fullUsername: string;
-	password: string;
-	username: string;
+	/** Absent for runtime endpoints. */
+	password?: string;
+	username?: string;
 	/** Caller identity for the From URI of runtime endpoints, which have no realm. */
 	userId?: string;
 	/** Present only for runtime (org/project/endpoint-backed) endpoints — absent

@@ -3,11 +3,12 @@ import type { ThemeName } from "../constants/themes";
 import type { TranscriptMessage } from "../components/TranscriptDisplay";
 
 interface ISipConnectivityInfo {
-	username: string;
-	applicationSid: string;
-	password: string;
 	wsUri: string;
-	realm: string;
+	/** Legacy credentials; absent for runtime endpoints. */
+	username?: string;
+	applicationSid?: string;
+	password?: string;
+	realm?: string;
 }
 
 interface ITranscriptionConfig {
