@@ -19,9 +19,15 @@ export const VoiceBotWidgetContainer = styled.div<{ theme: Theme }>`
 		align-items: flex-end;
 	}
 
+	/* Flex column + bottom-align instead of "position: absolute; bottom: 100%": the absolute
+	 * version floated the transcript out of the stack in a constrained container (iframe/
+	 * sidebar) with nothing above y=0. (CGY-36067) */
 	.webrtc_widget_content_stack {
 		position: relative;
 		max-width: 320px;
+		display: flex;
+		flex-direction: column;
+		justify-content: flex-end;
 	}
 
 	.webrtc_widget_transcript_section {
@@ -32,10 +38,9 @@ export const VoiceBotWidgetContainer = styled.div<{ theme: Theme }>`
 	}
 
 	.webrtc_widget_transcript_wrapper {
-		position: absolute;
-		bottom: 100%;
-		left: 0;
+		position: relative;
 		width: 100%;
+		z-index: 2;
 	}
 
 	.webrtc_widget_transcript_wrapper.has-transcript-bg {
@@ -43,8 +48,22 @@ export const VoiceBotWidgetContainer = styled.div<{ theme: Theme }>`
 		border-radius: 12px;
 		box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
 		border: none;
+		/* Panel's lower 80px tucks behind the pill; negative margin replaces the old absolute offset. */
 		padding-bottom: 80px;
+		margin-bottom: -80px;
+	}
+
+	/* A centered demo page translates the wrapper by -50%, so a transcript in normal flow
+	 * would push the pill down; keep the original out-of-flow layout there. */
+	body.webrtc-position-centered & .webrtc_widget_transcript_wrapper {
+		position: absolute;
+		bottom: 100%;
+		left: 0;
+	}
+
+	body.webrtc-position-centered & .webrtc_widget_transcript_wrapper.has-transcript-bg {
 		bottom: calc(100% - 80px);
+		margin-bottom: 0;
 	}
 
 	.webrtc_widget_container {

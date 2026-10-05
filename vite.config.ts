@@ -34,7 +34,8 @@ export default defineConfig(({ mode }) => {
 			lib: {
 				entry: "src/main.tsx",
 				name: "WebRTCWidget",
-				formats: ["cjs"],
+				// Unwrapped ("cjs") leaked ~490 names onto window, incl. Preact's `_` (CGY-36067).
+				formats: ["iife"],
 				fileName: () => "webRTCWidget.js",
 			},
 			// Add output directory configuration

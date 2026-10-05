@@ -15,3 +15,11 @@ export const DEMO_PAGE_BACKGROUND_TARGET_CLASS = "cognigy-webrtc-embed";
  * and the "connecting" placeholder to keep them aligned.
  */
 export const TRANSCRIPT_AREA_HEIGHT = 220;
+
+// Must not be Emotion's default ("css"): Cognigy Webchat uses that key too, and the two
+// caches would fight over the same <style data-emotion="css ...">. See WebrtcWidget.tsx.
+export const EMOTION_CACHE_KEY = "cognigy-webrtc";
+
+/** Web font the widget loads once per page, into <head>. */
+export const WIDGET_FONT_HREF =
+	"https://fonts.googleapis.com/css2?family=Mulish:wght@600&display=swap";

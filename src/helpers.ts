@@ -93,3 +93,15 @@ export function callReducer(state: CallState, action: CallAction): CallState {
 			return state;
 	}
 }
+
+// Previously appended a <link> on every mount with no cleanup/dedup, stacking a duplicate
+// onto the host page on each destroy/re-init cycle.
+export const ensureWidgetFontLoaded = (href: string) => {
+	if (typeof document === "undefined") return;
+	if (document.querySelector(`link[href="${href}"]`)) return;
+
+	const font = document.createElement("link");
+	font.href = href;
+	font.rel = "stylesheet";
+	document.head.appendChild(font);
+};
