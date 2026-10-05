@@ -78,12 +78,15 @@ describe("webrtcReducer — UPDATE_SETTINGS", () => {
 		expect(result.endpointSettings.webrtcWidgetConfig.label).toBe("Widget");
 	});
 
-	it("does NOT update webrtcWidgetConfig.active (protected field excluded by type)", () => {
+	it("does NOT update webrtcWidgetConfig.active, even for JS callers that bypass the type", () => {
+		// action is typed `any`, so this models an untyped JS caller sending the
+		// protected field; the reducer itself must strip it, not just the type.
 		const result = webrtcReducer(baseState, {
 			type: ActionTypes.UPDATE_SETTINGS,
-			payload: { webrtcWidgetConfig: { tagline: "X" } },
+			payload: { webrtcWidgetConfig: { active: false, tagline: "X" } },
 		});
 		expect(result.endpointSettings.webrtcWidgetConfig.active).toBe(true);
+		expect(result.endpointSettings.webrtcWidgetConfig.tagline).toBe("X");
 	});
 
 	it("does NOT touch sipConnectivityInfo", () => {

@@ -135,6 +135,9 @@ export function webrtcReducer(state: any, action: any) {
 			};
 		case ActionTypes.UPDATE_SETTINGS: {
 			const { webrtcWidgetConfig, settings } = action.payload;
+			// `active` is excluded from IUpdateableSettings, but JS callers bypass
+			// TypeScript entirely, so strip it here too rather than trust the type alone.
+			const { active: _active, ...safeWebrtcWidgetConfig } = webrtcWidgetConfig ?? {};
 			return {
 				...state,
 				...(settings && {
@@ -154,7 +157,7 @@ export function webrtcReducer(state: any, action: any) {
 						...state.endpointSettings,
 						webrtcWidgetConfig: {
 							...state.endpointSettings?.webrtcWidgetConfig,
-							...webrtcWidgetConfig,
+							...safeWebrtcWidgetConfig,
 						},
 					},
 				}),
