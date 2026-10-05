@@ -64,7 +64,6 @@ export function legacyConfig(overrides?: ConfigOverrides) {
 	);
 }
 
-/** What the endpoint handshake returns for a legacy endpoint today: credentials plus endpointId. */
 export function legacyConfigWithEndpointId(overrides?: ConfigOverrides) {
 	return withOverrides(
 		baseConfig(

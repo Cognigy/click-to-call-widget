@@ -171,8 +171,6 @@ describe("useSip", () => {
 		expect(mockCall).toHaveBeenCalledWith("endpoint-1");
 	});
 
-	// The endpoint handshake returns the ids for every endpoint; only the SIP
-	// credentials tell a legacy endpoint from a runtime one.
 	const legacyConfigWithIds = {
 		organisationId: "org-1",
 		projectId: "proj-1",

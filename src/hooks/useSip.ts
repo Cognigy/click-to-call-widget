@@ -140,10 +140,8 @@ export default function useSip() {
 	const applicationSid = sipInfo?.applicationSid;
 	const organisationId = config?.organisationId;
 	const projectId = config?.projectId;
-	// The handshake returns endpointId for every endpoint, legacy ones included, but
-	// only runtime endpoints lack the SIP credentials. A declared endpointId makes
-	// SipClient skip REGISTER and the SBC admit by identity, which a legacy
-	// endpoint can't be resolved by — so it stays undefined for those.
+	// The handshake sends endpointId for legacy endpoints too; declaring it would
+	// skip REGISTER and get the call rejected by the SBC.
 	const hasLegacyCredentials = !!(realm || applicationSid);
 	const endpointId = hasLegacyCredentials ? undefined : config?.endpointSettings?.endpointId;
 
