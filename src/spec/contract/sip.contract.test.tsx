@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/preact";
 import * as sounds from "../../constants/sounds";
-import { FakeRTCSession, resetFakeJssip } from "../fakes/fakeJssip";
+import { FakeRTCSession, FakeUA, resetFakeJssip } from "../fakes/fakeJssip";
 import {
 	clickCall,
 	clickEnd,
@@ -187,5 +187,28 @@ describe("SIP contract", () => {
 
 		expect(reject).toHaveBeenCalledTimes(1);
 		expect(accept).not.toHaveBeenCalled();
+	});
+
+	// SIP credentials travel over this socket (CTCW-SC8-001).
+	it("refuses a cleartext ws:// URI and never creates a UA", async () => {
+		serveConfig(
+			legacyConfig({
+				endpointSettings: {
+					sipConnectivityInfo: {
+						username: "widget-user",
+						password: "pw",
+						realm: "sip.example.com",
+						applicationSid: "app-sid-1",
+						wsUri: "ws://sip.example.com:8080",
+					},
+				},
+			})
+		);
+		await mountWidget({ userId: "u-1" });
+		await clickCall();
+		// Past the 1.2s ringing lead-in, when the INVITE would have been placed.
+		await new Promise((resolve) => setTimeout(resolve, 2500));
+
+		expect(FakeUA.instances).toHaveLength(0);
 	});
 });
