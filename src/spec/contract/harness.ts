@@ -77,7 +77,11 @@ export function serveConfig(config: unknown): void {
 }
 
 export async function mountWidget(options?: IOptions): Promise<LegacyWidget> {
-	return (await window.initWebRTCWidget("/cfg-token", options)) as LegacyWidget;
+	const widget = (await window.initWebRTCWidget("/cfg-token", options)) as LegacyWidget;
+	// Let Preact run the effects that build the SIP client; an init that resolves
+	// right after the config load would otherwise let the first click beat them.
+	await new Promise((resolve) => setTimeout(resolve, 150));
+	return widget;
 }
 
 export async function clickCall() {

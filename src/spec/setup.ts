@@ -3,7 +3,15 @@ import { cleanup } from "@testing-library/preact";
 import { createCanvas } from "canvas";
 import "@testing-library/jest-dom";
 import { setupServer } from "msw/node";
+import { transferableAbortController } from "node:util";
 import { handlers } from "../mocks/handlers";
+
+// jsdom's AbortController is rejected by Node's fetch (undici); use Node's own.
+const NodeAbortController = transferableAbortController()
+	.constructor as typeof AbortController;
+globalThis.AbortController = NodeAbortController;
+globalThis.AbortSignal = new NodeAbortController().signal
+	.constructor as typeof AbortSignal;
 
 export const server = setupServer(...handlers);
 
@@ -11,6 +19,12 @@ beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 afterEach(() => cleanup());
+
+// Emotion's CacheProvider is a React context and cannot render under preact.
+vi.mock("@emotion/react", async (importOriginal) => ({
+	...(await importOriginal<typeof import("@emotion/react")>()),
+	CacheProvider: ({ children }: { children: unknown }) => children,
+}));
 
 // MUI icons are React components and don't render under preact in vitest
 // (react is only aliased for inlined deps); stub them like the other specs do.
