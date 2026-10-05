@@ -82,9 +82,8 @@ const VoiceBotWidget = forwardRef((_, ref) => {
 			ua.stop();
 		};
 
-		const onRegistrationFailed = ({ client }: any) => {
+		const onRegistrationFailed = () => {
 			setIsStartingCall(false);
-			client.registered = false;
 			setTimeout(() => {
 				dispatch({ type: CallActionType.END_CALL });
 			}, 500);

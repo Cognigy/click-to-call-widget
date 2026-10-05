@@ -40,7 +40,7 @@ export class SipClient extends events.EventEmitter {
 					]
 				: [];
 
-		console.log({ client, settings }, "creating a sip client");
+		console.log({ wsUri: settings.wsUri, isRuntime: !!(client.organisationId && client.projectId && client.endpointId) }, "creating a sip client");
 
 		// SC-8: reject cleartext WebSocket — SIP credentials travel over this channel.
 		// The server already validates wss:// (vg-api-server click2call.ts Zod schema);
@@ -72,9 +72,10 @@ export class SipClient extends events.EventEmitter {
 
 		this._ua = new UA(ua);
 
+		// AU-3: do not spread the client object into events — it carries password.
 		["connecting", "connected", "disconnected", "registrationFailed"].forEach((evtName: any) =>
 			this._ua.on(evtName as keyof UAEventMap, (data: any) =>
-				this.emit(evtName, { ...data, client })
+				this.emit(evtName, { ...data })
 			)
 		);
 		this._ua.on("registered", (data: any) => {

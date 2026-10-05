@@ -131,7 +131,7 @@ window.initWebRTCWidget(token, { userId: 'user123' }).then((widget) => {
     console.log('Disconnected:', socket);
   });
 
-  widget.on('registrationFailed', ({ response, client }) => {
+  widget.on('registrationFailed', ({ response }) => {
     console.log('Registration failed:', response.status_code);
   });
 });

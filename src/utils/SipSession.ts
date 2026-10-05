@@ -280,44 +280,22 @@ export class SipSession extends events.EventEmitter {
 		});
 
 		this._rtcSession.on("refer", (data) => {
-			// console.log("Got here => -> refer");
-
-			const { request, accept } = data;
-			// Let's always accept incoming REFERs.
-			accept(
-				(rtcSession: TExtendedRTCSession) => {
-					// Set the replaces flag into the session so it won't play ringing.
-					//@ts-ignore
-					// TODO: this might not work - typings indicate that IncomingRequest has no refer_to property.
-					if (request.refer_to.uri.hasHeader("replaces")) {
-						rtcSession.data.replaces = true;
-					}
-					this._onSession(rtcSession);
-				},
-				{
-					mediaConstraints: { audio: true, video: false },
-					pcConfig: this._pcConfig,
-				}
-			);
+			// AC-3: reject REFER — transfer via REFER is not a supported mode
+			// for click-to-call widgets (confirmed by VG platform owner).
+			// Also removes a live crash path (@ts-ignore on refer_to.uri)
+			// and duplicate mediaConstraints/pcConfig keys.
+			const { reject } = data;
+			reject();
 		});
 
 		this._rtcSession.on("replaces", (data) => {
-			// console.log("Got here -> replaces");
-
-			const { accept } = data;
-			accept((rtcSession: TExtendedRTCSession) => {
-				// Set the replaces flag into the session so it won't ring.
-				rtcSession.data.replaces = true;
-				this._onSession(rtcSession);
-
-				// Auto-answer (unless already answered).
-				if (!rtcSession.isEstablished()) {
-					rtcSession.answer({
-						mediaConstraints: { audio: true, video: false },
-						pcConfig: this._pcConfig,
-					});
-				}
-			});
+			// AC-3: reject Replaces unconditionally. No VG component sends
+			// INVITE-with-Replaces on the outbound path (verified across
+			// sbc-outbound, sbc-inbound, feature-server, sbc-call-router).
+			// The previous auto-answer with audio:true was a zero-interaction
+			// microphone capture vulnerability (CTCW-AC3-002).
+			const { reject } = data;
+			reject();
 		});
 
 		const candidateTypes: Record<string, number> = {

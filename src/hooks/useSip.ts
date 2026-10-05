@@ -97,12 +97,12 @@ export default function useSip() {
 
 	/* event handlers for our sip ua */
 	const addUAEventListeners = (ua: SipClient) => {
-		ua.on("connected", ({ client }) => {
-			console.log({ client }, "connected");
+		ua.on("connected", () => {
+			console.log("connected");
 		});
 
-		ua.on("disconnected", ({ client }) => {
-			console.log({ client }, "disconnected");
+		ua.on("disconnected", () => {
+			console.log("disconnected");
 		});
 
 		ua.on("session", (session: SipSession) => {
