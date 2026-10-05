@@ -5,7 +5,7 @@ export interface ViewState {
 	isCallAnswered: boolean;
 	isMuted: boolean;
 	sessionStatus: CallStatus;
-	transcriptMessages: TranscriptMessage[];
+	transcriptMessages: readonly TranscriptMessage[];
 	remoteStream: MediaStream | null;
 	localStream: MediaStream | null;
 }

@@ -7,7 +7,7 @@ interface TranscriptSectionProps {
 	hasCustomBackground: boolean;
 	transcriptBgColor: string;
 	hasVisibleTranscript: boolean;
-	transcriptMessages: TranscriptMessage[];
+	transcriptMessages: readonly TranscriptMessage[];
 	theme: Theme;
 	agentName?: string;
 	isWaitingForTranscript: boolean;
