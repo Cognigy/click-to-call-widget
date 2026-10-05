@@ -1,5 +1,6 @@
 import type { WebRTCClient } from "@cognigy/click-to-call-sdk";
 import type { ThemeName } from "../constants/themes";
+import type { LegacyWidgetApi } from "../legacy/legacyWidgetApi";
 
 interface ISipConnectivityInfo {
 	username: string;
@@ -94,6 +95,14 @@ interface IOptions {
 	/** @deprecated ignored */
 	demoMode?: boolean;
 }
+type IUpdateableSettings = {
+	webrtcWidgetConfig?: Partial<Omit<IWebrtcWidgetConfig, 'active'>>;
+	settings?: {
+		privacyNotice?: Partial<IPrivacyNotice>;
+		transcription?: ISettingsTranscription;
+	};
+};
+
 interface IWebrtcContext {
 	client: WebRTCClient | null;
 	organisationId: string;
@@ -107,7 +116,13 @@ enum ActionTypes {
 	SET_OPTIONS = "SET_OPTIONS",
 	SET_LABELS = "SET_LABELS",
 	SET_USER_ID = "SET_USER_ID",
+	UPDATE_SETTINGS = "UPDATE_SETTINGS",
 }
 
-export type { IWebrtcContext, ISipConnectivityInfo, IOptions, IWebrtcWidgetConfig, IDemoPageBackground, IDemoPage, TWebrtcWidgetPosition };
+/** What `initWebRTCWidget` resolves to: the deprecated event API plus `updateSettings`. */
+interface IWidgetInstance extends LegacyWidgetApi {
+	updateSettings: (settings: IUpdateableSettings) => void;
+}
+
+export type { IWebrtcContext, ISipConnectivityInfo, IOptions, IWebrtcWidgetConfig, IDemoPageBackground, IDemoPage, TWebrtcWidgetPosition, IUpdateableSettings, ISettings, IWidgetInstance };
 export { ActionTypes };

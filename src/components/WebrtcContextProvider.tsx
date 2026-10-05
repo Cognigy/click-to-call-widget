@@ -1,11 +1,12 @@
 import { createContext } from "preact";
 import { useContext, useEffect, useMemo, useReducer } from "preact/hooks";
+import type { Dispatch } from "preact/hooks";
 
-import { ActionTypes, type IOptions, type IWebrtcContext } from "../types";
+import { ActionTypes, type IOptions, type IUpdateableSettings, type IWebrtcContext } from "../types";
 import { useWebRTCClient } from "../hooks/useWebRTCClient";
 
 // Define the initial state
-const initialState: IWebrtcContext = {
+export const initialState: IWebrtcContext = {
 	client: null,
 	organisationId: "",
 	projectId: "",
@@ -62,19 +63,63 @@ const initialState: IWebrtcContext = {
 
 // Create the context
 export const WebrtcContext = createContext(initialState);
+export const WebrtcDispatchContext = createContext<Dispatch<any>>(() => {});
+export const useWebrtcDispatch = () => useContext(WebrtcDispatchContext);
+
+function mergeUpdate(target: IUpdateableSettings, update: IUpdateableSettings): IUpdateableSettings {
+	const { webrtcWidgetConfig, settings } = update;
+	return {
+		webrtcWidgetConfig: webrtcWidgetConfig
+			? { ...target.webrtcWidgetConfig, ...webrtcWidgetConfig }
+			: target.webrtcWidgetConfig,
+		settings: settings
+			? {
+					...target.settings,
+					...settings,
+					...(settings.privacyNotice && {
+						privacyNotice: { ...target.settings?.privacyNotice, ...settings.privacyNotice },
+					}),
+				}
+			: target.settings,
+	} as IUpdateableSettings;
+}
+
+// Runtime overrides are kept apart so the config load (SET_DATA) cannot wipe
+// an updateSettings() that arrived before it.
+function withOverrides(state: any) {
+	if (!state.overrides) return state;
+	const merged = mergeUpdate(
+		{ webrtcWidgetConfig: state.endpointSettings?.webrtcWidgetConfig, settings: state.settings },
+		state.overrides,
+	);
+	return {
+		...state,
+		settings: merged.settings,
+		endpointSettings: { ...state.endpointSettings, webrtcWidgetConfig: merged.webrtcWidgetConfig },
+	};
+}
 
 // Define the reducer function
-function webrtcReducer(state: any, action: any) {
+export function webrtcReducer(state: any, action: any) {
 	switch (action.type) {
 		case ActionTypes.SET_DATA: {
-			return {
+			return withOverrides({
 				...state,
 				...action.payload,
 				options: {
 					...state.options,
 					...action.payload.options,
 				},
+			});
+		}
+		case ActionTypes.UPDATE_SETTINGS: {
+			// `active` is not updateable, and untyped callers could still send it.
+			const { active: _active, ...webrtcWidgetConfig } = action.payload?.webrtcWidgetConfig ?? {};
+			const update: IUpdateableSettings = {
+				...(action.payload?.webrtcWidgetConfig && { webrtcWidgetConfig }),
+				...(action.payload?.settings && { settings: action.payload.settings }),
 			};
+			return withOverrides({ ...state, overrides: mergeUpdate(state.overrides ?? {}, update) });
 		}
 		case ActionTypes.SET_OPTIONS: {
 			const newOptions = {
@@ -159,7 +204,9 @@ export const WebrtcContextProvider = ({
 	const value = useMemo(() => ({ ...state, client }), [state, client]);
 
 	return (
-		<WebrtcContext.Provider value={value}>{children}</WebrtcContext.Provider>
+		<WebrtcContext.Provider value={value}>
+			<WebrtcDispatchContext.Provider value={dispatch}>{children}</WebrtcDispatchContext.Provider>
+		</WebrtcContext.Provider>
 	);
 };
 

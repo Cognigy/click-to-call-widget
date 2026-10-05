@@ -1,8 +1,7 @@
 /** @jsxImportSource preact */
 import { render } from "preact";
 import App from "./components/WebrtcWidget.tsx";
-import type { IOptions } from "./types/index.ts";
-import type { LegacyWidgetApi } from "./legacy/legacyWidgetApi.ts";
+import type { IOptions, IWidgetInstance } from "./types/index.ts";
 
 const ASYNC_DELAY = process.env.NODE_ENV === "development" ? 500 : 0;
 
@@ -24,17 +23,17 @@ const destroyWebRTCWidget = () => {
 	}
 };
 
-const initWebRTCWidget = async (token: string, options?: IOptions, callback?: (webrtcWidget: LegacyWidgetApi) => void) => {
+const initWebRTCWidget = async (token: string, options?: IOptions, callback?: (webrtcWidget: IWidgetInstance) => void) => {
 	destroyWebRTCWidget();
 
-	return new Promise<LegacyWidgetApi>((resolve, reject) => {
+	return new Promise<IWidgetInstance>((resolve, reject) => {
 		const webrtcWidget = document.createElement("div");
 		document.body.appendChild(webrtcWidget);
 		currentWidgetContainer = webrtcWidget;
 
 		const newOptions: IOptions = options ? { ...options } : {};
 
-		let webrtcWidgetRef: LegacyWidgetApi | null = null;
+		let webrtcWidgetRef: IWidgetInstance | null = null;
 		// A later init or destroy replaces the container; stop waiting for this one
 		// and leave its promise pending (integrators and previews treat a rejection as a failed init).
 		const superseded = () => currentWidgetContainer !== webrtcWidget;
@@ -42,7 +41,7 @@ const initWebRTCWidget = async (token: string, options?: IOptions, callback?: (w
 		setTimeout(async () => {
 			try {
 				if (superseded()) return;
-				render(<App mainRef={(ref: LegacyWidgetApi) => {
+				render(<App mainRef={(ref: IWidgetInstance) => {
 					webrtcWidgetRef = ref;
 				}} token={token} options={newOptions} />, webrtcWidget);
 				while (!webrtcWidgetRef) {
