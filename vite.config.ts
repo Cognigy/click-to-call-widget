@@ -20,9 +20,11 @@ export default defineConfig(({ mode }) => {
 						algorithms: ["gzip", "brotliCompress"],
 						threshold: 1024,
 					}),
-					analyzer(),
 				]
 				: []),
+			// The analyzer serves its report over HTTP and keeps `vite build` alive
+			// forever, so it is opt-in: `npm run build:analyze`.
+			...(process.env.ANALYZE ? [analyzer()] : []),
 		],
 		define: {
 			"process.env": {
