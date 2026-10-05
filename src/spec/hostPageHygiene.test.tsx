@@ -1,10 +1,22 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render } from "@testing-library/preact";
 
+import App from "../components/WebrtcWidget";
 import { ensureWidgetFontLoaded } from "../helpers";
 import { EMOTION_CACHE_KEY, WIDGET_FONT_HREF } from "../constants/constants";
 
-// CGY-36067 host-page hygiene vs. Cognigy Webchat (webchat3.js). CacheProvider is stubbed
-// as a passthrough in setup.ts, so assert on the cache-key constant, not a rendered tree.
+// Records the cache the widget hands to CacheProvider. A real one cannot render under preact
+// in vitest, so this is a passthrough that checks the wiring, not the emitted tags.
+const providedCaches = vi.hoisted(() => [] as Array<{ key: string }>);
+vi.mock("@emotion/react", async (importOriginal) => ({
+	...(await importOriginal<typeof import("@emotion/react")>()),
+	CacheProvider: ({ value, children }: { value: { key: string }; children: unknown }) => {
+		providedCaches.push(value);
+		return children;
+	},
+}));
+
+// CGY-36067 host-page hygiene vs. Cognigy Webchat (webchat3.js).
 describe("host-page hygiene", () => {
 	beforeEach(() => {
 		for (const node of document.querySelectorAll("link[rel=stylesheet]")) {
@@ -16,6 +28,13 @@ describe("host-page hygiene", () => {
 		// webchat3.js also claims "css"; sharing it means the two caches adopt each other's tags.
 		expect(EMOTION_CACHE_KEY).not.toBe("css");
 		expect(EMOTION_CACHE_KEY).toBe("cognigy-webrtc");
+	});
+
+	it("renders the widget inside a CacheProvider with its own cache", () => {
+		render(<App token="/cfg" options={{}} mainRef={() => {}} />);
+
+		expect(providedCaches.length).toBeGreaterThan(0);
+		expect(providedCaches.every((cache) => cache.key === EMOTION_CACHE_KEY)).toBe(true);
 	});
 
 	it("adds the widget font to <head>, never <body>", () => {

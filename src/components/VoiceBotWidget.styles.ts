@@ -53,6 +53,19 @@ export const VoiceBotWidgetContainer = styled.div<{ theme: Theme }>`
 		margin-bottom: -80px;
 	}
 
+	/* A centered demo page translates the wrapper by -50%, so a transcript in normal flow
+	 * would push the pill down; keep the original out-of-flow layout there. */
+	body.webrtc-position-centered & .webrtc_widget_transcript_wrapper {
+		position: absolute;
+		bottom: 100%;
+		left: 0;
+	}
+
+	body.webrtc-position-centered & .webrtc_widget_transcript_wrapper.has-transcript-bg {
+		bottom: calc(100% - 80px);
+		margin-bottom: 0;
+	}
+
 	.webrtc_widget_container {
 		background-color: var(--webrtc-bg-color, ${(props) => props.theme.backgroundColor});
 		border-radius: 999px;
