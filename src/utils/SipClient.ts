@@ -42,6 +42,14 @@ export class SipClient extends events.EventEmitter {
 
 		console.log({ wsUri: settings.wsUri, isRuntime: !!(client.organisationId && client.projectId && client.endpointId) }, "creating a sip client");
 
+		// SC-8: reject cleartext WebSocket — SIP credentials travel over this channel.
+		// The server already validates wss:// (vg-api-server click2call.ts Zod schema);
+		// this is defense-in-depth so a misconfigured or tampered config can't downgrade.
+		const parsedWsUri = new URL(settings.wsUri);
+		if (parsedWsUri.protocol !== "wss:") {
+			throw new Error(`SipClient requires a wss:// URI, got ${parsedWsUri.protocol}`);
+		}
+
 		const socket = new WebSocketInterface(settings.wsUri);
 
 		// Runtime endpoints have no realm or credentials; the SBC admits them by the

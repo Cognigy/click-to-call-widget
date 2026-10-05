@@ -109,6 +109,16 @@ describe("SipClient", () => {
 		expect(UA).toHaveBeenCalledWith(expect.objectContaining({ uri: "sip:anonymous@sbc.example.com" }));
 	});
 
+	it("throws on a ws:// URI (SC-8)", () => {
+		expect(() => new SipClient(baseClient, { wsUri: "ws://example.com" }))
+			.toThrow(/wss:/);
+	});
+
+	it("allows a wss:// URI without throwing (SC-8)", () => {
+		expect(() => new SipClient(baseClient, { wsUri: "wss://example.com" }))
+			.not.toThrow();
+	});
+
 	it("does not include password in emitted event data (AU-3)", () => {
 		const client = new SipClient(baseClient, { wsUri: "wss://example.com" });
 
