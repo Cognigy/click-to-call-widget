@@ -173,4 +173,19 @@ describe("SIP contract", () => {
 			expect(session.unmute).toHaveBeenCalledWith({ audio: true, video: true })
 		);
 	});
+
+	// No transfer UI; Replaces would auto-answer with the mic (CTCW-AC3-001/-002).
+	it.each(["refer", "replaces"])("rejects an inbound %s request", async (kind) => {
+		serveConfig(legacyConfig());
+		await mountWidget({ userId: "u-1" });
+		await clickCall();
+		await waitFor(() => expect(lastUA().call).toHaveBeenCalled(), { timeout: 3000 });
+
+		const accept = vi.fn();
+		const reject = vi.fn();
+		lastSession().emit(kind, { request: {}, accept, reject });
+
+		expect(reject).toHaveBeenCalledTimes(1);
+		expect(accept).not.toHaveBeenCalled();
+	});
 });
