@@ -1,0 +1,89 @@
+name: Claude PR Review
+
+# Thin wrapper around the Cognigy/github-actions reusable workflows.
+# Managed by claude-review/enroll-repo-claude-review.sh in Cognigy/github-actions.
+#
+# Pinned to a moving major tag (e.g. @v1). Patches and minors land
+# automatically; only major bumps need a coordinated update via the
+# enrollment script.
+#
+# Do not edit by hand.
+# The review job calls this repo's team workflow (claude-review-team-<team>.yml), which carries the team's Bedrock profile and skill.
+#
+# Two jobs:
+#   gate    — runs on every PR event. Cheap, no Bedrock. Posts the
+#             `claude-review` commit status that branch protection requires,
+#             reporting whether a real review has run on this PR at least
+#             once (or the PR only touches docs). This is what makes the
+#             review mandatory without running it on every push.
+#   review  — runs the multi-agent review. NOT on every push. It fires:
+#               * automatically, once, when the PR first becomes ready
+#                 (opened non-draft, or a draft flipped to ready_for_review)
+#                 — unless the repo is set to review_trigger: on-demand in
+#                 enrolled-repos.yaml, which renders this arm off and leaves
+#                 only the two deliberate triggers below,
+#               * on demand, when a writer comments `/review` (or
+#                 `@claude review`) on the PR, and
+#               * on demand, when a writer adds the `claude-review` label to
+#                 the PR. The review workflow drops the label immediately so
+#                 re-applying it fires another run — one click from the PR
+#                 sidebar, works from mobile, and shows up in the timeline.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, labeled]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+  statuses: write
+
+jobs:
+  # Keep the required status fresh on every push, for free.
+  # `enforce` follows the repo's review_trigger in enrolled-repos.yaml: false
+  # under on-demand, because a review that never starts by itself must not be
+  # a merge requirement. The status is still posted either way, as success.
+  gate:
+    if: github.event_name == 'pull_request'
+    uses: Cognigy/github-actions/.github/workflows/claude-review-gate.yml@v2
+    with:
+      enforce: true
+
+  # Run the review automatically once the PR is ready, on `/review`, and on
+  # the `claude-review` label being added. The label is the discoverable
+  # trigger — one click from the PR sidebar or the mobile app. The review
+  # workflow drops it before it runs anything, so re-applying always
+  # re-fires — including after a review that errored out.
+  #
+  # A labeled event on a still-draft PR is deliberately ignored: the review
+  # workflow itself skips drafts (review-drafts input defaults to false), so
+  # firing here would only produce a wasted run. The user marks the PR ready
+  # first, or adds the label after it is ready.
+  review:
+    if: >-
+      (
+        github.event_name == 'pull_request'
+        && github.event.pull_request.draft == false
+        && (
+             github.event.action == 'opened' || github.event.action == 'ready_for_review'
+          || (github.event.action == 'labeled' && github.event.label.name == 'claude-review')
+        )
+        && github.event.pull_request.user.login != 'cognigy-renovate[bot]'
+      ) || (
+        github.event_name == 'issue_comment'
+        && github.event.issue.pull_request != null
+        && (contains(github.event.comment.body, '/review') || contains(github.event.comment.body, '@claude review'))
+        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+      )
+    uses: Cognigy/github-actions/.github/workflows/claude-review-team-echo.yml@v2
+    with:
+      pr-number: ${{ github.event.pull_request.number || github.event.issue.number }}
+      # This team's Bedrock profile and review skill live in that workflow, in
+      # Cognigy/github-actions, so changing them needs no PR in this repo.
+    secrets:
+      aws-role-to-assume:     ${{ secrets.CLAUDE_AWS_ROLE_ARN }}
+      skills-app-id:          ${{ secrets.CLAUDE_SKILLS_APP_ID }}
+      skills-app-private-key: ${{ secrets.CLAUDE_SKILLS_APP_PRIVATE_KEY }}
