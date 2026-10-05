@@ -48,6 +48,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - run: npm run check:bundle
       - uses: actions/upload-artifact@v4
         with:
           name: webRTCWidget
