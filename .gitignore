@@ -34,6 +34,5 @@ public/demo-audio/
 requirements/
 scripts/
 
-# Local copy pointed at a real endpoint (use src/mocks/mock.example.json as the
-# template). The committed example is what tests and `npm run dev` use.
+# Local override of src/mocks/mock.example.json
 src/mocks/mock.json

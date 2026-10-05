@@ -22,8 +22,7 @@ export default defineConfig(({ mode }) => {
 					}),
 				]
 				: []),
-			// The analyzer serves its report over HTTP and keeps `vite build` alive
-			// forever, so it is opt-in: `npm run build:analyze`.
+			// Keeps `vite build` alive, so opt-in: `npm run build:analyze`.
 			...(process.env.ANALYZE ? [analyzer()] : []),
 		],
 		define: {
