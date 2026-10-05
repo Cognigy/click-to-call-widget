@@ -173,7 +173,7 @@ window.initWebRTCWidget(token, {},(widget) => {
 
 - User agent level payloads carry `client`, which is now the SDK `WebRTCClient` instance (previously an object with the SIP credentials). `socket` is no longer present on `connecting`, `connected` and `disconnected`.
 - `disconnected` carries `{ code, reason }`.
-- `registrationFailed` carries `{ cause, response: { status_code, reason_phrase }, client }`; `response` is only present when available.
+- `registrationFailed` carries `{ cause, response: { status_code, reason_phrase } }`; `response` is only present when available.
 - `failed` and `terminated` handlers now receive the end info as an argument (previously none).
 - `session.terminate()` always ends the call with SIP 480 "Ended by user".
 - With call transfers (REFER/replaces), the replaced session no longer receives `ended` or `terminated`.
