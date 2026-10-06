@@ -79,7 +79,7 @@ describe("SipClient", () => {
 		expect(mockUaInstance.call).toHaveBeenCalledWith("app-123", expect.objectContaining({ extraHeaders: [] }));
 	});
 
-	it("registers with the realm credentials for a legacy endpoint", () => {
+	it("does not register but keeps the realm credentials for the INVITE challenge on a legacy endpoint", () => {
 		new SipClient(baseClient, { wsUri: "wss://example.com" });
 
 		expect(UA).toHaveBeenCalledWith(
@@ -87,7 +87,7 @@ describe("SipClient", () => {
 				uri: "sip:user@realm.example",
 				password: "secret",
 				authorization_user: "user",
-				register: true,
+				register: false,
 			})
 		);
 	});

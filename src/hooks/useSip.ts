@@ -141,7 +141,7 @@ export default function useSip() {
 	const organisationId = config?.organisationId;
 	const projectId = config?.projectId;
 	// The handshake sends endpointId for legacy endpoints too; declaring it would
-	// skip REGISTER and get the call rejected by the SBC.
+	// drop the credentials and get the call rejected by the SBC.
 	const hasLegacyCredentials = !!(realm || applicationSid);
 	const endpointId = hasLegacyCredentials ? undefined : config?.endpointSettings?.endpointId;
 

@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 describe("SIP contract", () => {
-	it("legacy endpoint: registers with realm credentials and dials app-<applicationSid>", async () => {
+	it("legacy endpoint: does not register, keeps realm credentials and dials app-<applicationSid>", async () => {
 		serveConfig(legacyConfig());
 		await mountWidget({ userId: "u-1" });
 		await clickCall();
@@ -46,7 +46,7 @@ describe("SIP contract", () => {
 			uri: "sip:u-1@sip.example.com",
 			password: "pw",
 			authorization_user: "widget-user",
-			register: true,
+			register: false,
 		});
 		const [target, opts] = lastUA().call.mock.calls[0];
 		expect(target).toBe("app-app-sid-1");
@@ -57,7 +57,7 @@ describe("SIP contract", () => {
 		]);
 	});
 
-	it("legacy endpoint that also carries endpointId (real handshake): still registers, dials app-<applicationSid>, declares no endpoint", async () => {
+	it("legacy endpoint that also carries endpointId (real handshake): does not register, dials app-<applicationSid>, declares no endpoint", async () => {
 		serveConfig(legacyConfigWithEndpointId());
 		await mountWidget({ userId: "u-1" });
 		await clickCall();
@@ -67,7 +67,7 @@ describe("SIP contract", () => {
 			uri: "sip:u-1@sip.example.com",
 			password: "pw",
 			authorization_user: "widget-user",
-			register: true,
+			register: false,
 		});
 		const [target, opts] = lastUA().call.mock.calls[0];
 		expect(target).toBe("app-app-sid-1");
