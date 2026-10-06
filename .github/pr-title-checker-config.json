@@ -1,0 +1,19 @@
+{
+  "LABEL": {
+    "name": "Title needs to be semantic",
+    "color": "EEEEEE"
+  },
+  "CHECKS": {
+    "regexp": "^(fix|feat|build|chore|ci|docs|perf|refactor|revert|style|test)(\\([^)\\s]+\\))?!?: \\S.*",
+    "regexpFlags": "",
+    "ignoreLabels": [
+      "dont-check-PRs-with-this-label",
+      "meta"
+    ]
+  },
+  "MESSAGES": {
+    "success": "All OK",
+    "failure": "Failing CI test",
+    "notice": "Use a conventional commit title, e.g. `fix(scope): message` or `feat!: message`. See https://www.conventionalcommits.org"
+  }
+}
