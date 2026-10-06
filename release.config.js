@@ -19,6 +19,8 @@ export default {
     [
       '@semantic-release/github',
       {
+        // `latest` is what customers' embed snippets load; a person publishes the draft.
+        draftRelease: true,
         assets: [
           'dist/webRTCWidget.js',
           'dist/webRTCWidget.js.br',
