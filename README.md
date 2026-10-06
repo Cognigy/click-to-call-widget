@@ -1,10 +1,11 @@
 # Click to Call Widget
 
-A customizable WebRTC-based Click to Call Widget built with Preact and JsSIP for integrating voice capabilities into web applications. This widget specifically enables communication with Cognigy AI voicebots.
+A customizable WebRTC-based Click to Call Widget built with Preact on top of the [`@cognigy/click-to-call-sdk`](https://github.com/Cognigy/click-to-call-sdk) for integrating voice capabilities into web applications. This widget specifically enables communication with Cognigy AI voicebots.
 
 ## Features
 
-- Real-time voice communication using WebRTC
+- Real-time voice communication using WebRTC, built on the Cognigy click-to-call SDK (`@cognigy/click-to-call-sdk`), which owns signaling, registration and call state
+- Works with legacy and runtime endpoints
 - Seamless integration with Cognigy.AI voicebots
 - Privacy-first approach with user consent management
 - Customizable UI with animated components
@@ -17,8 +18,7 @@ A customizable WebRTC-based Click to Call Widget built with Preact and JsSIP for
 - Preact
 - TypeScript
 - Vite
-- JsSIP (WebRTC signaling)
-- Socket.IO
+- `@cognigy/click-to-call-sdk` (WebRTC signaling, configuration and call state)
 - Material-UI components
 
 ## Installation
@@ -32,7 +32,7 @@ A customizable WebRTC-based Click to Call Widget built with Preact and JsSIP for
    ```bash
    cp src/mocks/mock.example.json src/mocks/mock.json
    ```
-   Then edit `src/mocks/mock.json` with your SIP credentials (for development purposes).
+   Then edit `src/mocks/mock.json` with your credentials (for development purposes).
 
 ## Development
 
@@ -74,7 +74,9 @@ Provides essential call controls including:
 - Mute/Unmute
 - Call status indicators
 
-### Event Handling and Callbacks
+### Event Handling and Callbacks (deprecated)
+
+> **Deprecated.** The `widget.on(...)` event API below is kept for backwards compatibility only. It is a thin layer over the SDK and behaves slightly differently from the previous JsSIP-based implementation (see [Differences from the previous implementation](#differences-from-the-previous-implementation)). For new integrations, use the SDK API described in the README of [`@cognigy/click-to-call-sdk`](https://github.com/Cognigy/click-to-call-sdk). Integrators who need call events should use `@cognigy/click-to-call-sdk` directly.
 
 The widget provides a comprehensive event system for handling WebRTC sessions and user interactions. You can attach event listeners and callbacks in two ways:
 
@@ -119,20 +121,12 @@ window.initWebRTCWidget(token, { userId: 'user123' }).then((widget) => {
   });
 
   // Listen for user agent events
-  widget.on('change', () => {
-    console.log('User agent state changed');
+  widget.on('disconnected', ({ code, reason }) => {
+    console.log('Disconnected:', code, reason);
   });
 
-  widget.on('answer', () => {
-    console.log('Call answered');
-  });
-
-  widget.on('disconnected', ({ socket }) => {
-    console.log('Disconnected:', socket);
-  });
-
-  widget.on('registrationFailed', ({ response }) => {
-    console.log('Registration failed:', response.status_code);
+  widget.on('registrationFailed', ({ cause, response }) => {
+    console.log('Registration failed:', cause, response?.status_code);
   });
 });
 ```
@@ -175,7 +169,24 @@ window.initWebRTCWidget(token, {},(widget) => {
 - `terminated`: Triggered when the session is terminated
 
 
-### Sending Info Messages
+#### Differences from the previous implementation
+
+- User agent level payloads carry `client`, which is now the SDK `WebRTCClient` instance (previously an object with the SIP credentials). `socket` is no longer present on `connecting`, `connected` and `disconnected`.
+- `disconnected` carries `{ code, reason }`.
+- `registrationFailed` carries `{ cause, response: { status_code, reason_phrase } }`; `response` is only present when available.
+- `failed` and `terminated` handlers now receive the end info as an argument (previously none).
+- `session.terminate()` always ends the call with SIP 480 "Ended by user".
+- With call transfers (REFER/replaces), the replaced session no longer receives `ended` or `terminated`.
+- The mute button is disabled until the call is answered.
+- `initWebRTCWidget` now resolves even when the widget is inactive.
+- `initWebRTCWidget` resolves before the config has loaded, and also when the config fetch fails.
+- `disconnected` now fires after every call, including a remote hangup, because the widget disconnects after each call.
+- Session objects no longer emit `close`, `peerconnection` or `active`, and no longer expose `direction`, `number`, `endInfo`, `duration`, `hold`/`unhold`, `answer` or `setActive`.
+- A transport drop during an established call now ends the call (previously the media continued while the WebSocket reconnected).
+
+### Sending Info Messages (deprecated)
+
+> **Deprecated.** `session.sendInfo()` is part of the legacy event API. See the [`@cognigy/click-to-call-sdk`](https://github.com/Cognigy/click-to-call-sdk) README for the supported way to send and receive info messages.
 
 You can use the Click to Call Widget API to send info messages during an active session via `session.sendInfo()`.
 
@@ -314,7 +325,7 @@ The widget allows customization of UI labels through the initialization options.
 
 ```javascript
 window.initWebRTCWidget(token, {
-  userId: 'user123',  // Optional: User ID for SIP authentication
+  userId: 'user123',  // Optional: User ID for the call
   ui: {
     labels: {
       callButton: "Start Voice Chat",    // Custom call button text
@@ -482,5 +493,5 @@ MIT
 ## Acknowledgments
 
 - Built with Preact
-- Uses JsSIP for WebRTC signaling
+- Uses `@cognigy/click-to-call-sdk` for WebRTC signaling
 - Powered by Cognigy.AI

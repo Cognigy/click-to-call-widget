@@ -1,5 +1,4 @@
-import { CallActionType } from "./types";
-import type { CallState, CallAction } from "./types";
+import { COGNIGY_WEBRTC_OPTIONS } from "./constants/constants";
 
 export const getLocalStore = (key: string) => {
 	const item = localStorage.getItem(key);
@@ -48,51 +47,26 @@ export function randomId(prefix?: string): string {
 	return result;
 }
 
+// Explicit ids are used as-is; generated ones persist so the caller ID survives reloads.
+export function resolveUserId(
+	explicitUserId: string | undefined,
+	endpointName: string
+): string {
+	if (explicitUserId) return explicitUserId;
+
+	const existingUserOptions = getLocalStore(COGNIGY_WEBRTC_OPTIONS) || {};
+	if (existingUserOptions.userId) return existingUserOptions.userId;
+
+	const safeName =
+		(endpointName || "").replace(/[^a-zA-Z0-9-]/g, "").toLowerCase() ||
+		"endpoint";
+	const userId = `webrtc-${safeName}-${randomId()}`;
+	setLocalStore(COGNIGY_WEBRTC_OPTIONS, { ...existingUserOptions, userId });
+	return userId;
+}
+
 export const shouldEnableEndCall = (status: string) =>
 	["ringing", "answered", "failed"].includes(status);
-
-export const initialCallState: CallState = {
-	isCalling: false,
-	isCallAnswered: false,
-	isMuted: false,
-	sessionStatus: undefined,
-	transcriptMessages: [],
-	remoteStream: null,
-	localStream: null,
-};
-
-export function callReducer(state: CallState, action: CallAction): CallState {
-	switch (action.type) {
-		case CallActionType.START_CALL:
-			return { ...state, isCalling: true };
-		case CallActionType.CALL_ANSWERED:
-			return { ...state, isCallAnswered: true };
-		case CallActionType.END_CALL:
-			return initialCallState;
-		case CallActionType.SET_MUTED:
-			return state.isMuted === action.muted ? state : { ...state, isMuted: action.muted };
-		case CallActionType.SET_SESSION_STATUS:
-			return state.sessionStatus === action.status ? state : { ...state, sessionStatus: action.status };
-		case CallActionType.SET_REMOTE_STREAM:
-			return { ...state, remoteStream: action.stream };
-		case CallActionType.SET_LOCAL_STREAM:
-			return { ...state, localStream: action.stream };
-		case CallActionType.SET_STREAMS:
-			return { ...state, remoteStream: action.remote, localStream: action.local };
-		case CallActionType.SET_TRANSCRIPT_MESSAGES:
-			return { ...state, transcriptMessages: action.messages };
-		case CallActionType.UPDATE_TRANSCRIPT_MESSAGES: {
-			const updated = action.updater(state.transcriptMessages);
-			return updated === state.transcriptMessages ? state : { ...state, transcriptMessages: updated };
-		}
-		case CallActionType.SYNC_SESSION: {
-			if (state.sessionStatus === action.status && state.isMuted === action.muted) return state;
-			return { ...state, sessionStatus: action.status, isMuted: action.muted };
-		}
-		default:
-			return state;
-	}
-}
 
 // Previously appended a <link> on every mount with no cleanup/dedup, stacking a duplicate
 // onto the host page on each destroy/re-init cycle.
