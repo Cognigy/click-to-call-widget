@@ -53,12 +53,15 @@ export class SipClient extends events.EventEmitter {
 
 		const socket = new WebSocketInterface(settings.wsUri);
 
-		// Runtime endpoints have no realm or credentials; the SBC admits them by the
-		// declared identity headers only, and nothing needs to reach this UA, so skip
-		// REGISTER. The host just has to parse — the resolver ignores it.
+		// The widget only places calls and nothing needs to reach this UA, so it never
+		// registers: every REGISTER counts toward drachtio's per-IP spam ban, which
+		// trips fast when several callers share one public IP. The SBC admits runtime
+		// endpoints by their declared identity headers and challenges legacy ones on
+		// the INVITE itself, which JsSIP answers with the credentials below.
 		const isRuntime = !!(client.organisationId && client.projectId && client.endpointId);
 		const ua = isRuntime
 			? {
+					// The host just has to parse — the resolver ignores it.
 					uri: `sip:${client.userId || "anonymous"}@${new URL(settings.wsUri).hostname}`,
 					sockets: [socket],
 					register: false,
@@ -68,7 +71,7 @@ export class SipClient extends events.EventEmitter {
 					password: client.password,
 					authorization_user: client.username,
 					sockets: [socket],
-					register: true,
+					register: false,
 				};
 
 		this._ua = new UA(ua);
