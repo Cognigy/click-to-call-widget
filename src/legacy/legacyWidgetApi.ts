@@ -15,7 +15,7 @@ export interface LegacyWidgetApi {
 
 // UA-level events the old SipClient re-emitted. `client` is no longer
 // included: it carried the SIP password (CTCW-AU3-002).
-const CLIENT_EVENTS = ["connecting", "connected", "disconnected", "registrationFailed"] as const;
+const CLIENT_EVENTS = ["connecting", "connected", "disconnected"] as const;
 
 // Integrator code must never break the widget.
 function safeCall(handler: Handler, args: unknown[]): void {

@@ -158,37 +158,6 @@ describe("event contract", () => {
 		);
 	});
 
-	it("registrationFailed exposes response.status_code", async () => {
-		// The SDK never REGISTERs, so this only keeps the legacy widget.on() shim
-		// forwarding the event for embeds that still subscribe to it.
-		FakeUA.autoRegister = false;
-		serveConfig(legacyConfig());
-		const widget = await mountWidget({ userId: "u-1" });
-		const handler = vi.fn();
-		const connected = vi.fn();
-		widget.on("registrationFailed", handler);
-		widget.on("connected", connected);
-		await clickCall();
-		await waitFor(() => {
-			expect(connected).toHaveBeenCalled();
-			expect(screen.getByTestId("cognigy-end-call-button")).toBeInTheDocument();
-		}, TIMEOUT);
-		expect(lastUA().isRegistered()).toBe(false);
-
-		lastUA().emit("registrationFailed", {
-			response: { status_code: 403, reason_phrase: "Forbidden" },
-			cause: "Rejected",
-		});
-
-		await waitFor(() =>
-			expect(handler).toHaveBeenCalledWith(
-				expect.objectContaining({
-					response: expect.objectContaining({ status_code: 403 }),
-				})
-			)
-		);
-	});
-
 	it("connecting/connected/disconnected are forwarded to widget.on", async () => {
 		serveConfig(legacyConfig());
 		const widget = await mountWidget({ userId: "u-1" });

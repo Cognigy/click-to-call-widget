@@ -4,7 +4,7 @@ A customizable WebRTC-based Click to Call Widget built with Preact on top of the
 
 ## Features
 
-- Real-time voice communication using WebRTC, built on the Cognigy click-to-call SDK (`@cognigy/click-to-call-sdk`), which owns signaling, registration and call state
+- Real-time voice communication using WebRTC, built on the Cognigy click-to-call SDK (`@cognigy/click-to-call-sdk`), which owns signaling and call state
 - Works with legacy and runtime endpoints
 - Seamless integration with Cognigy.AI voicebots
 - Privacy-first approach with user consent management
@@ -124,10 +124,6 @@ window.initWebRTCWidget(token, { userId: 'user123' }).then((widget) => {
   widget.on('disconnected', ({ code, reason }) => {
     console.log('Disconnected:', code, reason);
   });
-
-  widget.on('registrationFailed', ({ cause, response }) => {
-    console.log('Registration failed:', cause, response?.status_code);
-  });
 });
 ```
 
@@ -157,7 +153,6 @@ window.initWebRTCWidget(token, {},(widget) => {
 - `connecting`: Triggered when the connection is being established
 - `connected`: Triggered when the connection is successfully established
 - `disconnected`: Triggered when the connection is disconnected
-- `registrationFailed`: Triggered when registration fails
 
 ##### Session Events
 - `ringing`: Triggered when the session is ringing (incoming call)
@@ -173,7 +168,7 @@ window.initWebRTCWidget(token, {},(widget) => {
 
 - User agent level payloads carry `client`, which is now the SDK `WebRTCClient` instance (previously an object with the SIP credentials). `socket` is no longer present on `connecting`, `connected` and `disconnected`.
 - `disconnected` carries `{ code, reason }`.
-- `registrationFailed` carries `{ cause, response: { status_code, reason_phrase } }`; `response` is only present when available.
+- `registrationFailed` is no longer emitted because the widget never sends REGISTER; subscribing to it is harmless.
 - `failed` and `terminated` handlers now receive the end info as an argument (previously none).
 - `session.terminate()` always ends the call with SIP 480 "Ended by user".
 - With call transfers (REFER/replaces), the replaced session no longer receives `ended` or `terminated`.

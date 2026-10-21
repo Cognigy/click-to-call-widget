@@ -200,7 +200,7 @@ describe("WebRTC Widget Initialization", () => {
         const widget = await mountWidget({ userId: "u-1" });
         const uaEvents = vi.fn();
         const sessionEvents = vi.fn();
-        for (const name of ["connecting", "connected", "disconnected", "registrationFailed"]) {
+        for (const name of ["connecting", "connected", "disconnected"]) {
           widget.on(name, uaEvents);
         }
         widget.on("newRTCSession", (s: { on: (e: string, h: () => void) => void }) => {
@@ -228,7 +228,6 @@ describe("WebRTC Widget Initialization", () => {
         session.emit("ended", { originator: "remote", cause: "Terminated" });
         ua.emit("connected", {});
         ua.emit("disconnected", {});
-        ua.emit("registrationFailed", { cause: "Rejected" });
         await new Promise((r) => setTimeout(r, 50));
 
         expect(uaEvents).not.toHaveBeenCalled();

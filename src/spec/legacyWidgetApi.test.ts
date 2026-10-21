@@ -198,20 +198,9 @@ describe("legacy widget API", () => {
 		expect(error).toHaveBeenCalledWith("[webrtc-widget] legacy handler failed", boom);
 	});
 
-	it("registrationFailed payload keeps response.status_code", () => {
-		const { client, widget } = setup();
-		const handler = vi.fn();
-		widget.on("registrationFailed", handler);
-
-		client.emit("registrationFailed", {
-			cause: "Rejected",
-			response: { status_code: 403, reason_phrase: "Forbidden" },
-		});
-
-		expect(handler).toHaveBeenCalledWith({
-			cause: "Rejected",
-			response: { status_code: 403, reason_phrase: "Forbidden" },
-		});
+	it("accepts subscriptions to events that no longer fire", () => {
+		const { widget } = setup();
+		expect(() => widget.on("registrationFailed", vi.fn())).not.toThrow();
 	});
 
 	it("forwards connecting, connected and disconnected without the client", () => {
@@ -236,7 +225,7 @@ describe("legacy widget API", () => {
 	it("never emits the client object on UA events", () => {
 		const { client, widget } = setup();
 		const handler = vi.fn();
-		const names = ["connecting", "connected", "disconnected", "registrationFailed"];
+		const names = ["connecting", "connected", "disconnected"];
 		for (const name of names) widget.on(name, handler);
 
 		for (const name of names) client.emit(name, { cause: "x" });
