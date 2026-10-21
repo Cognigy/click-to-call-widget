@@ -36,11 +36,16 @@ const initWebRTCWidget = async (token: string, options?: IOptions, callback?: (w
 	let webrtcWidgetRef : IWidgetInstance | null = null;
 
 	setTimeout(async() => {
+		// destroyWebRTCWidget() or a newer init ran before this timer fired: the container is
+		// detached, so mounting here would leave an orphan nothing can unmount.
+		if (currentWidgetContainer !== webrtcWidget) return;
 		render(<App mainRef={(ref: IWidgetInstance) => {
 			webrtcWidgetRef = ref;
 		}} token={token} options={newOptions} />, webrtcWidget);
 		while (!webrtcWidgetRef) {
 			await new Promise(resolve => setTimeout(resolve, 500));
+			// Destroyed or superseded while waiting for the widget ref: stop polling, resolve nothing.
+			if (currentWidgetContainer !== webrtcWidget) return;
 		}
 		if(callback) {
 			callback(webrtcWidgetRef);
