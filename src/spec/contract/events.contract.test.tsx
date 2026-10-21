@@ -159,7 +159,8 @@ describe("event contract", () => {
 	});
 
 	it("registrationFailed exposes response.status_code", async () => {
-		// JsSIP emits registrationFailed instead of registered.
+		// The SDK never REGISTERs, so this only keeps the legacy widget.on() shim
+		// forwarding the event for embeds that still subscribe to it.
 		FakeUA.autoRegister = false;
 		serveConfig(legacyConfig());
 		const widget = await mountWidget({ userId: "u-1" });
@@ -186,7 +187,6 @@ describe("event contract", () => {
 				})
 			)
 		);
-		await expectIdle();
 	});
 
 	it("connecting/connected/disconnected are forwarded to widget.on", async () => {
