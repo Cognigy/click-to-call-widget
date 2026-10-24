@@ -99,4 +99,59 @@ describe("WebRTC Widget Initialization", () => {
     expect(widgetContainer).toBeTruthy();
     expect(document.body.contains(widgetContainer)).toBe(true);
   });
+  describe("destroy or re-init before the widget mounts", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("mounts nothing when destroyed in the same tick as init", async () => {
+      const callback = vi.fn();
+      const settled = vi.fn();
+      window.initWebRTCWidget("test-token", {}, callback).then(settled);
+      window.destroyWebRTCWidget();
+
+      await vi.runAllTimersAsync();
+
+      expect(App).not.toHaveBeenCalled();
+      expect(callback).not.toHaveBeenCalled();
+      expect(settled).not.toHaveBeenCalled();
+      expect(document.body.children).toHaveLength(0);
+    });
+
+    it("stops polling for the widget ref after a destroy", async () => {
+      vi.mocked(App).mockImplementationOnce(() => null as never); // never produces a ref
+      const settled = vi.fn();
+      window.initWebRTCWidget("test-token").then(settled);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(App).toHaveBeenCalledTimes(1);
+
+      window.destroyWebRTCWidget();
+      await vi.advanceTimersByTimeAsync(600);
+
+      expect(vi.getTimerCount()).toBe(0);
+      expect(settled).not.toHaveBeenCalled();
+    });
+
+    it("leaves only the newest widget when init is called twice back to back", async () => {
+      const first = vi.fn();
+      const second = vi.fn();
+      window.initWebRTCWidget("first-token", {}, first);
+      window.initWebRTCWidget("second-token", {}, second);
+
+      await vi.runAllTimersAsync();
+
+      expect(App).toHaveBeenCalledTimes(1);
+      expect(App).toHaveBeenCalledWith(
+        expect.objectContaining({ token: "second-token" }),
+        expect.any(Object)
+      );
+      expect(first).not.toHaveBeenCalled();
+      expect(second).toHaveBeenCalledTimes(1);
+      expect(document.body.children).toHaveLength(1);
+    });
+  });
 });
