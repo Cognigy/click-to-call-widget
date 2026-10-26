@@ -31,18 +31,20 @@ jobs:
       - run: npm run build
       - run: npm run check:bundle
       - name: Remove superseded draft releases and their version tags
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          gh api --paginate "repos/$GITHUB_REPOSITORY/releases" \
-            --jq '.[] | select(.draft and .target_commitish == "main") | .tag_name | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' |
+          tags=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" \
+            --jq '.[] | select(.draft and .target_commitish == "main") | .tag_name | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))')
           while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
             gh release delete "$tag" --yes --cleanup-tag
             if [ -n "$(git tag --list "$tag")" ]; then
               git tag --delete "$tag"
             fi
-          done
+          done <<< "$tags"
       - run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
