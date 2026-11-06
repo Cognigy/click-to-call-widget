@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/preact";
-import { FakeRTCSession, FakeUA, resetFakeJssip } from "../fakes/fakeJssip";
+import { FakeUA, resetFakeJssip } from "../fakes/fakeJssip";
 import {
 	clickCall,
 	clickEnd,
@@ -16,20 +16,6 @@ vi.mock("jssip", async () => (await import("../fakes/fakeJssip")).fakeJssipModul
 
 const PRIVACY_KEY = "call-privacy-permission-granted";
 const TIMEOUT = { timeout: 3000 };
-
-type DeliveredSession = {
-	on: (event: string, handler: (...args: any[]) => void) => void;
-	sendInfo: (text: string, data: Record<string, unknown>) => void;
-};
-
-/** Records what a `newRTCSession` handler receives. */
-function collectSessions(widget: {
-	on: (e: string, h: (...a: any[]) => void) => void;
-}) {
-	const sessions: DeliveredSession[] = [];
-	widget.on("newRTCSession", (s: DeliveredSession) => sessions.push(s));
-	return sessions;
-}
 
 const expectIdle = () =>
 	waitFor(
@@ -47,45 +33,6 @@ afterEach(() => {
 });
 
 describe("event contract", () => {
-	it("newRTCSession delivers a session emitting ringing, answered, terminated", async () => {
-		serveConfig(legacyConfig());
-		const widget = await mountWidget({ userId: "u-1" });
-		const events: string[] = [];
-		widget.on("newRTCSession", (s: DeliveredSession) => {
-			for (const name of ["ringing", "answered", "failed", "terminated"]) {
-				s.on(name, () => events.push(name));
-			}
-		});
-		await clickCall();
-		await waitFor(() => expect(lastUA().call).toHaveBeenCalled(), TIMEOUT);
-
-		lastSession().progress();
-		await waitFor(() => expect(events).toEqual(["ringing"]));
-		lastSession().accept();
-		await waitFor(() => expect(events).toEqual(["ringing", "answered"]));
-
-		await clickEnd();
-		await waitFor(() =>
-			expect(events).toEqual(["ringing", "answered", "terminated"])
-		);
-	});
-
-	it("newRTCSession session emits failed when the call is rejected", async () => {
-		serveConfig(legacyConfig());
-		const widget = await mountWidget({ userId: "u-1" });
-		const events: string[] = [];
-		widget.on("newRTCSession", (s: DeliveredSession) => {
-			for (const name of ["ringing", "answered", "failed", "terminated"]) {
-				s.on(name, () => events.push(name));
-			}
-		});
-		await clickCall();
-		await waitFor(() => expect(lastUA().call).toHaveBeenCalled(), TIMEOUT);
-
-		lastSession().fail("Rejected", 486);
-		await waitFor(() => expect(events).toEqual(["failed"]));
-	});
-
 	it("ending the call before it is answered returns the UI to idle", async () => {
 		serveConfig(legacyConfig());
 		await mountWidget({ userId: "u-1" });
@@ -104,15 +51,34 @@ describe("event contract", () => {
 		await expectIdle();
 	});
 
-	it("newInfo carries { originator, info } for non-transcription INFO and skips transcription", async () => {
+	it("widget.on subscribes to SDK session events", async () => {
+		serveConfig(legacyConfig());
+		const widget = await mountWidget({ userId: "u-1" });
+		const events: string[] = [];
+		for (const name of ["sessionCreated", "ringing", "answered", "ended"]) {
+			widget.on(name, () => events.push(name));
+		}
+		await clickCall();
+		await waitFor(() => expect(lastUA().call).toHaveBeenCalled(), TIMEOUT);
+
+		lastSession().progress();
+		await waitFor(() => expect(events).toEqual(["sessionCreated", "ringing"]));
+		lastSession().accept();
+		await waitFor(() => expect(events).toEqual(["sessionCreated", "ringing", "answered"]));
+
+		await clickEnd();
+		await waitFor(() =>
+			expect(events).toEqual(["sessionCreated", "ringing", "answered", "ended"])
+		);
+	});
+
+	it("widget.on delivers transcription and incoming INFO as SDK events", async () => {
 		serveConfig(legacyConfig());
 		const widget = await mountWidget({ userId: "u-1" });
 		const infos: unknown[] = [];
 		const transcriptions: unknown[] = [];
-		widget.on("newRTCSession", (s: DeliveredSession) => {
-			s.on("newInfo", (data) => infos.push(data));
-			s.on("transcription", (data) => transcriptions.push(data));
-		});
+		widget.on("infoReceived", (data: unknown) => infos.push(data));
+		widget.on("transcription", (data: unknown) => transcriptions.push(data));
 		await clickCall();
 		await waitFor(() => expect(lastUA().call).toHaveBeenCalled(), TIMEOUT);
 
@@ -134,28 +100,20 @@ describe("event contract", () => {
 			originator: "bot",
 			messages: [{ text: "Hi" }],
 		});
-		expect(infos).toHaveLength(1);
 	});
 
-	it("session.sendInfo sends application/json { text, data }", async () => {
-		const sendInfo = vi.spyOn(FakeRTCSession.prototype, "sendInfo");
-		onTestFinished(() => sendInfo.mockRestore());
+	it("widget.on('newRTCSession') warns that it is removed and never fires", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		serveConfig(legacyConfig());
 		const widget = await mountWidget({ userId: "u-1" });
-		const sessions = collectSessions(widget);
+		const handler = vi.fn();
+		widget.on("newRTCSession", handler);
 		await clickCall();
-		await waitFor(() => expect(sessions).toHaveLength(1), TIMEOUT);
+		await waitFor(() => expect(lastUA().call).toHaveBeenCalled(), TIMEOUT);
 
-		lastSession().progress();
-		lastSession().accept();
-		sessions[0].sendInfo("Yes", { a: 1 });
-
-		await waitFor(() =>
-			expect(sendInfo).toHaveBeenCalledWith(
-				"application/json",
-				'{"text":"Yes","data":{"a":1}}'
-			)
-		);
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining("newRTCSession"));
+		expect(handler).not.toHaveBeenCalled();
+		warn.mockRestore();
 	});
 
 	it("connecting/connected/disconnected are forwarded to widget.on", async () => {

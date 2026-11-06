@@ -157,12 +157,12 @@ describe("WebRTC Widget Initialization", () => {
     });
 
     it.each(["remote hangup", "user end"])(
-      "places a second call after %s on a new UA with a new legacy session",
+      "places a second call after %s on a new UA with a new SDK session",
       async (end) => {
         serveConfig(legacyConfig());
         const widget = await mountWidget({ userId: "u-1" });
-        const sessions: { jssipRtcSession: unknown }[] = [];
-        widget.on("newRTCSession", (s: { jssipRtcSession: unknown }) => sessions.push(s));
+        const sessions: { id: string }[] = [];
+        widget.on("sessionCreated", (s: { id: string }) => sessions.push(s));
 
         await clickCall();
         await waitFor(() => expect(lastUA().call).toHaveBeenCalled(), { timeout: 3000 });
@@ -186,13 +186,11 @@ describe("WebRTC Widget Initialization", () => {
 
         expect(firstUA.call).toHaveBeenCalledTimes(1);
         expect(sessions).toHaveLength(2);
-        expect(sessions[1]).not.toBe(sessions[0]);
-        expect(sessions[0].jssipRtcSession).toBe(first);
-        expect(sessions[1].jssipRtcSession).toBe(lastSession());
+        expect(sessions[1].id).not.toBe(sessions[0].id);
       }
     );
 
-    it("destroy mid-call terminates and silences legacy handlers", async () => {
+    it("destroy mid-call terminates and silences widget.on handlers", async () => {
       const unhandled = vi.fn();
       process.on("unhandledRejection", unhandled);
       try {
@@ -203,11 +201,9 @@ describe("WebRTC Widget Initialization", () => {
         for (const name of ["connecting", "connected", "disconnected"]) {
           widget.on(name, uaEvents);
         }
-        widget.on("newRTCSession", (s: { on: (e: string, h: () => void) => void }) => {
-          for (const name of ["ringing", "answered", "newInfo", "transcription", "failed", "ended", "terminated"]) {
-            s.on(name, sessionEvents);
-          }
-        });
+        for (const name of ["sessionCreated", "ringing", "answered", "infoReceived", "transcription", "failed", "ended"]) {
+          widget.on(name, sessionEvents);
+        }
         await clickCall();
         await waitFor(() => expect(lastUA().call).toHaveBeenCalled(), { timeout: 3000 });
         const session = lastSession();
