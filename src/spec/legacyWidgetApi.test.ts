@@ -267,6 +267,39 @@ describe("legacy widget API", () => {
 		await vi.waitFor(() => expect(error).toHaveBeenCalled());
 	});
 
+	it.each(["ended", "failed"])("session methods are no-ops after the call %s, so a stale handle cannot hit the next call", (end) => {
+		const { client, sessions } = setup();
+		client.emit("sessionCreated", callSession("s-1"));
+		client.emit(end, callSession("s-1", end), {});
+		client.emit("sessionCreated", callSession("s-2"));
+
+		const stale = sessions[0];
+		stale.sendInfo("late");
+		stale.terminate();
+		stale.mute();
+		stale.unmute();
+		stale.sendDtmf("1");
+
+		expect(client.sendInfo).not.toHaveBeenCalled();
+		expect(client.endCall).not.toHaveBeenCalled();
+		expect(client.mute).not.toHaveBeenCalled();
+		expect(client.unmute).not.toHaveBeenCalled();
+		expect(client.sendDTMF).not.toHaveBeenCalled();
+
+		sessions[1].terminate();
+		expect(client.endCall).toHaveBeenCalledTimes(1);
+	});
+
+	it("a session replaced by REFER/replaces still controls the continuing call", () => {
+		const { client, sessions } = setup();
+		client.emit("sessionCreated", callSession("s-1"));
+		client.emit("sessionCreated", callSession("s-2"));
+
+		sessions[0].terminate();
+
+		expect(client.endCall).toHaveBeenCalledTimes(1);
+	});
+
 	it("tracks muted and emits change", () => {
 		const { client, sessions } = setup();
 		client.emit("sessionCreated", callSession("s-1"));

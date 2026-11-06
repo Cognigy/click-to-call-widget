@@ -71,13 +71,16 @@ function logFailure(action: string) {
  * The session object `newRTCSession`/`session` handlers receive, shaped like the
  * old SipSession. Events: ringing, answered + accepted, newInfo, transcription,
  * failed, ended + terminated, change. It only forwards while it is the latest
- * session and until it ends. Its methods always act on the client's current
- * call, also once a newer session has detached it.
+ * session and until it ends. Its methods act on the client's current call, also
+ * once a newer session has detached it (REFER/replaces continues the same call),
+ * but are no-ops after its own call ended, so a stale handle never hits a later call.
  */
 export class LegacySession extends Emitter {
 	private _status: SessionStatus;
 	private _muted: boolean;
 	private _done = false;
+	// Own call ended or failed. `_done` also covers being detached by a newer session.
+	private _over = false;
 	private readonly _client: WebRTCClient;
 	private readonly _id: string;
 	private _rtcSession: ExtendedRTCSession | null = null;
@@ -123,6 +126,7 @@ export class LegacySession extends Emitter {
 
 	/** Sends `{ text, data }` as application/json INFO; needs an answered call. */
 	sendInfo(text: string, data: Record<string, unknown> = {}): void {
+		if (this._over) return;
 		this._client.sendInfo(text, data).catch(logFailure("sendInfo"));
 	}
 
@@ -131,18 +135,22 @@ export class LegacySession extends Emitter {
 	 * user"; custom codes and reasons are ignored.
 	 */
 	terminate(_code?: number, _reason?: string): void {
+		if (this._over) return;
 		this._client.endCall().catch(logFailure("terminate"));
 	}
 
 	mute(): void {
+		if (this._over) return;
 		this._client.mute().catch(logFailure("mute"));
 	}
 
 	unmute(): void {
+		if (this._over) return;
 		this._client.unmute().catch(logFailure("unmute"));
 	}
 
 	sendDtmf(tones: string | number): void {
+		if (this._over) return;
 		this._client.sendDTMF(tones).catch(logFailure("sendDtmf"));
 	}
 
@@ -177,12 +185,12 @@ export class LegacySession extends Emitter {
 				this.emit("transcription", payload);
 				break;
 			case "failed":
-				this._done = true;
+				this._done = this._over = true;
 				this._setStatus("failed");
 				this.emit("failed", payload);
 				break;
 			case "ended":
-				this._done = true;
+				this._done = this._over = true;
 				this._setStatus("ended");
 				this.emit("ended", payload);
 				this.emit("terminated", payload);

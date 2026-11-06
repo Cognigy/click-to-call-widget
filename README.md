@@ -173,7 +173,7 @@ window.initWebRTCWidget(token, {},(widget) => {
 
 #### Differences from the previous implementation
 
-- User agent level payloads carry `client`, which is now the SDK `WebRTCClient` instance (previously an object with the SIP credentials). `socket` is no longer present on `connecting`, `connected` and `disconnected`.
+- User agent level payloads no longer carry `client` (previously an object with the SIP credentials) or `socket` on `connecting`, `connected` and `disconnected`.
 - `disconnected` carries `{ code, reason }`.
 - `registrationFailed` is no longer emitted because the widget never sends REGISTER; subscribing to it is harmless.
 - `failed` and `terminated` handlers now receive the end info as an argument (previously none).
