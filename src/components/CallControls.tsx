@@ -12,7 +12,7 @@ interface IProps {
 	isCalling: boolean;
 	handleStartCall: () => void;
 	disabled?: boolean;
-	status?: string;
+	muteDisabled: boolean;
 }
 
 const CallControls: FC<IProps> = ({
@@ -22,6 +22,7 @@ const CallControls: FC<IProps> = ({
 	isCalling,
 	handleStartCall,
 	disabled = false,
+	muteDisabled,
 }) => {
 	if (isCalling) {
 		return (
@@ -30,7 +31,7 @@ const CallControls: FC<IProps> = ({
 					type="button"
 					className="webrtc_widget_mute_button"
 					onClick={onMuteToggle}
-					disabled={disabled}
+					disabled={muteDisabled}
 					aria-label={isMuted ? "Unmute" : "Mute"}
 					data-testid="cognigy-mute-unmute-button"
 				>
