@@ -54,6 +54,13 @@ npm run build
 
 This will create a production-ready build in the `dist` directory. The widget is built as a CommonJS module that can be integrated into other applications.
 
+## Releases
+
+Merges to `main` replace pending versioned drafts and their tags with one draft
+containing all releasable changes since the last published release. Notes and
+bundle assets are regenerated, replacing any manual edits to pending drafts.
+Publish the draft manually when ready; published releases are left untouched.
+
 ## Usage
 
 The widget can be integrated into any web application. After building, include the generated JavaScript file and initialize the widget.
