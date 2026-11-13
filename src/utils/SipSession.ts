@@ -6,6 +6,11 @@ import type { SessionOptions } from "../types";
 import type { IEndInfo } from "../types";
 import type { TExtendedRTCSession } from "../types";
 import * as sounds from "../constants/sounds";
+import {
+	CallStatsCollector,
+	type CallStatsSample,
+	WEBRTC_STATS_CONTENT_TYPE,
+} from "./CallStatsCollector";
 
 export class SipSession extends events.EventEmitter {
 	private _pcConfig?: RTCConfiguration;
@@ -23,6 +28,7 @@ export class SipSession extends events.EventEmitter {
 	private _hungUpAudio: HTMLAudioElement;
 	private _failedAudio: HTMLAudioElement;
 	private _remoteAudio: HTMLAudioElement;
+	private _statsCollector?: CallStatsCollector;
 
 	constructor(rtcSession: TExtendedRTCSession, options: SessionOptions) {
 		super();
@@ -78,6 +84,8 @@ export class SipSession extends events.EventEmitter {
 		this._remoteAudio = new Audio();
 
 		const _attachPCListeners = (pc: RTCPeerConnection) => {
+			this._statsCollector = new CallStatsCollector(pc, this._sendStats.bind(this));
+
 			pc.addEventListener("addstream", (event: any) => {
 				const stream = event.stream;
 
@@ -135,6 +143,7 @@ export class SipSession extends events.EventEmitter {
 		this._rtcSession.on("accepted", () => {
 			// console.log("Got here => -> accepted");
 			this._status = "answered";
+			this._statsCollector?.start();
 			this.emit("change");
 			this.emit("answered");
 		});
@@ -162,6 +171,7 @@ export class SipSession extends events.EventEmitter {
 			};
 
 			this._status = "failed";
+			this._statsCollector?.stop();
 			this.emit("change");
 
 			if (
@@ -207,6 +217,7 @@ export class SipSession extends events.EventEmitter {
 			};
 
 			this._status = "ended";
+			this._statsCollector?.stop();
 			this.emit("change");
 
 			if (originator === "local" && cause === C.causes.BYE) {
@@ -502,6 +513,30 @@ export class SipSession extends events.EventEmitter {
 	sendDtmf = (tones: string | number) => {
 		this._rtcSession.sendDTMF(tones);
 	};
+
+	/**
+	 * Sends one last stats sample. Call it before terminate(): once the call ends
+	 * the peer connection is closed and the dialog that carries the INFO is gone.
+	 */
+	async sendFinalStats(): Promise<void> {
+		await this._statsCollector?.flush("final");
+		this._statsCollector?.stop();
+	}
+
+	private _sendStats(sample: CallStatsSample) {
+		this.emit("stats", sample);
+		if (!this._rtcSession.isEstablished() || this._rtcSession.isEnded()) return;
+		try {
+			// The instance sendInfo is overridden to always send application/json.
+			(this._rtcSession as any).constructor.prototype.sendInfo.call(
+				this._rtcSession,
+				WEBRTC_STATS_CONTENT_TYPE,
+				JSON.stringify(sample)
+			);
+		} catch (err) {
+			console.warn("failed to send WebRTC stats", err);
+		}
+	}
 
 	sendInfo(text: string, data: Record<string, any>) {
 		// Call the original JsSIP sendInfo method directly
