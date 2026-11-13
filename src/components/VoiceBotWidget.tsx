@@ -259,8 +259,16 @@ const VoiceBotWidget = forwardRef<IWidgetInstance>((_, ref) => {
 
 		dispatch({ type: CallActionType.END_CALL });
 		setShowPrivacyDialog(false);
-		sessionRef.current?.terminate(480, "Ended by user");
-		userAgentRef.current?.stop();
+
+		const session: SipSession | null = sessionRef.current;
+		const ua = userAgentRef.current;
+		// The final stats INFO must leave before the BYE: terminating closes the
+		// peer connection and the dialog. sendFinalStats() is bounded to a few
+		// hundred ms and resolves at once when there is no answered call.
+		void (session?.sendFinalStats() ?? Promise.resolve()).finally(() => {
+			if (session && !session.terminated) session.terminate(480, "Ended by user");
+			ua?.stop();
+		});
 	};
 
 	const toggleMute = () => {
