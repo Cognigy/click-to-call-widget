@@ -29,7 +29,6 @@ webrtc
 !.env.example
 
 public/config.json
-public/demo-audio/
 
 requirements/
 scripts/

@@ -26,32 +26,37 @@ const destroyWebRTCWidget = () => {
 const initWebRTCWidget = async (token: string, options?: IOptions, callback?: (webrtcWidget: IWidgetInstance) => void) => {
 	destroyWebRTCWidget();
 
-	return new Promise<IWidgetInstance>((resolve) => {
+	return new Promise<IWidgetInstance>((resolve, reject) => {
 		const webrtcWidget = document.createElement("div");
 		document.body.appendChild(webrtcWidget);
 		currentWidgetContainer = webrtcWidget;
 
-	const newOptions: IOptions = options ? { ...options } : {};
+		const newOptions: IOptions = options ? { ...options } : {};
 
-	let webrtcWidgetRef : IWidgetInstance | null = null;
+		let webrtcWidgetRef: IWidgetInstance | null = null;
+		// A later init or destroy replaces the container; stop waiting for this one
+		// and leave its promise pending (integrators and previews treat a rejection as a failed init).
+		const superseded = () => currentWidgetContainer !== webrtcWidget;
 
-	setTimeout(async() => {
-		// destroyWebRTCWidget() or a newer init ran before this timer fired: the container is
-		// detached, so mounting here would leave an orphan nothing can unmount.
-		if (currentWidgetContainer !== webrtcWidget) return;
-		render(<App mainRef={(ref: IWidgetInstance) => {
-			webrtcWidgetRef = ref;
-		}} token={token} options={newOptions} />, webrtcWidget);
-		while (!webrtcWidgetRef) {
-			await new Promise(resolve => setTimeout(resolve, 500));
-			// Destroyed or superseded while waiting for the widget ref: stop polling, resolve nothing.
-			if (currentWidgetContainer !== webrtcWidget) return;
-		}
-		if(callback) {
-			callback(webrtcWidgetRef);
-		}
-		resolve(webrtcWidgetRef);
-	}, ASYNC_DELAY);
+		setTimeout(async () => {
+			try {
+				if (superseded()) return;
+				render(<App mainRef={(ref: IWidgetInstance) => {
+					webrtcWidgetRef = ref;
+				}} token={token} options={newOptions} />, webrtcWidget);
+				while (!webrtcWidgetRef) {
+					if (superseded()) return;
+					await new Promise(resolve => setTimeout(resolve, 500));
+				}
+				if (superseded()) return;
+				if (callback) {
+					callback(webrtcWidgetRef);
+				}
+				resolve(webrtcWidgetRef);
+			} catch (error) {
+				reject(error);
+			}
+		}, ASYNC_DELAY);
 	});
 };
 

@@ -1,10 +1,11 @@
 # Click to Call Widget
 
-A customizable WebRTC-based Click to Call Widget built with Preact and JsSIP for integrating voice capabilities into web applications. This widget specifically enables communication with Cognigy AI voicebots.
+A customizable WebRTC-based Click to Call Widget built with Preact on top of the [`@cognigy/click-to-call-sdk`](https://github.com/Cognigy/click-to-call-sdk) for integrating voice capabilities into web applications. This widget specifically enables communication with Cognigy AI voicebots.
 
 ## Features
 
-- Real-time voice communication using WebRTC
+- Real-time voice communication using WebRTC, built on the Cognigy click-to-call SDK (`@cognigy/click-to-call-sdk`), which owns signaling and call state
+- Works with legacy and runtime endpoints
 - Seamless integration with Cognigy.AI voicebots
 - Privacy-first approach with user consent management
 - Customizable UI with animated components
@@ -17,8 +18,7 @@ A customizable WebRTC-based Click to Call Widget built with Preact and JsSIP for
 - Preact
 - TypeScript
 - Vite
-- JsSIP (WebRTC signaling)
-- Socket.IO
+- `@cognigy/click-to-call-sdk` (WebRTC signaling, configuration and call state)
 - Material-UI components
 
 ## Installation
@@ -32,7 +32,7 @@ A customizable WebRTC-based Click to Call Widget built with Preact and JsSIP for
    ```bash
    cp src/mocks/mock.example.json src/mocks/mock.json
    ```
-   Then edit `src/mocks/mock.json` with your SIP credentials (for development purposes).
+   Then edit `src/mocks/mock.json` with your credentials (for development purposes).
 
 ## Development
 
@@ -81,198 +81,48 @@ Provides essential call controls including:
 - Mute/Unmute
 - Call status indicators
 
-### Event Handling and Callbacks
+### Events
 
-The widget provides a comprehensive event system for handling WebRTC sessions and user interactions. You can attach event listeners and callbacks in two ways:
+`initWebRTCWidget(token, options, callback)` resolves to the widget instance (and passes it to the optional callback). It has two methods: `on(event, handler)` and `updateSettings()` (see below).
 
-#### 1. Using Event Listeners
+`on` subscribes to the events of the [`@cognigy/click-to-call-sdk`](https://github.com/Cognigy/click-to-call-sdk) client, using the SDK's event names and payloads:
+
+| Event | Handler arguments |
+| --- | --- |
+| `connecting`, `connected` | `{}` |
+| `disconnected` | `{ code, reason }` |
+| `sessionCreated`, `ringing`, `answered`, `muted`, `unmuted` | `session` (`{ id, status, direction, startTime, answerTime, duration, muted, localHold, remoteHold }`) |
+| `ended`, `failed` | `session`, `{ originator, cause, description }` |
+| `infoReceived` | `{ originator, info }` (transcription messages are not included) |
+| `transcription` | the transcription payload, e.g. `{ originator, messages: [{ text }] }` |
+| `error` | `Error` |
 
 ```javascript
-// Initialize the widget
 window.initWebRTCWidget(token, { userId: 'user123' }).then((widget) => {
-  // Listen for new RTC sessions
-  widget.on('newRTCSession', (session) => {
-    console.log('New RTC session created:', session);
-
-
-
-    // Listen for answered events
-    session.on('answered', () => {
-      console.log('Session answered');
-    });
-
-    // Listen for new info events on the session
-    session.on('newInfo', (infoEvent) => {
-      console.log('New info received:', infoEvent);
-    });
-
-    // Listen for transcription events
-    session.on('transcription', (transcription) => {
-      console.log('Transcription received:', transcription);
-    });
-
-    // Listen for session state changes
-    session.on('failed', () => {
-      console.log('Session failed');
-    });
-
-    session.on('ended', () => {
-      console.log('Session ended');
-    });
-
-    session.on('terminated', () => {
-      console.log('Session terminated');
-    });
+  widget.on('sessionCreated', (session) => console.log('Call started', session.id));
+  widget.on('answered', () => console.log('Call answered'));
+  widget.on('transcription', ({ originator, messages }) => {
+    messages.forEach((message) => console.log(originator, message.text));
   });
-
-  // Listen for user agent events
-  widget.on('change', () => {
-    console.log('User agent state changed');
-  });
-
-  widget.on('answer', () => {
-    console.log('Call answered');
-  });
-
-  widget.on('disconnected', ({ socket }) => {
-    console.log('Disconnected:', socket);
-  });
-
-  widget.on('registrationFailed', ({ response }) => {
-    console.log('Registration failed:', response.status_code);
-  });
+  widget.on('ended', (session, { originator, cause }) => console.log('Call ended', originator, cause));
+  widget.on('disconnected', ({ code, reason }) => console.log('Disconnected:', code, reason));
 });
 ```
 
-#### 2. Using Callback Options
+The same works with the callback: `window.initWebRTCWidget(token, {}, (widget) => widget.on(...))`.
 
-You can also pass callbacks through the initialization options:
+For anything beyond listening, such as sending info messages or controlling calls programmatically, use the SDK directly.
 
-```javascript
+#### Differences from the previous implementation
 
-window.initWebRTCWidget(token, {},(widget) => {
-  // Listen for new RTC sessions
-  widget.on('newRTCSession', (session) => {
-    console.log('New RTC session created:', session);
-
-    // Listen for new info events on the session
-    session.on('newInfo', (infoEvent) => {
-      console.log('New info received:', infoEvent);
-	});
-  });
-});
-```
-
-#### Available Events
-
-##### User Agent Events
-- `newRTCSession`: Triggered when a new RTC session is created
-- `connecting`: Triggered when the connection is being established
-- `connected`: Triggered when the connection is successfully established
-- `disconnected`: Triggered when the connection is disconnected
-- `registrationFailed`: Triggered when registration fails
-
-##### Session Events
-- `ringing`: Triggered when the session is ringing (incoming call)
-- `answered`: Triggered when the session is answered
-- `newInfo`: Triggered when new information is received (excluding transcription events)
-- `transcription`: Triggered when transcription data is received from the remote peer
-- `failed`: Triggered when the session fails
-- `ended`: Triggered when the session ends
-- `terminated`: Triggered when the session is terminated
-
-
-### Sending Info Messages
-
-You can use the Click to Call Widget API to send info messages during an active session via `session.sendInfo()`.
-
-#### Sending Text Messages
-
-To send text messages, pass the text content as the first argument:
-
-```javascript
-session.sendInfo("Yes");
-```
-
-#### Sending Text and Data Messages
-
-If you want to add structured data to your message, pass it as a JSON object via a second argument, like this:
-
-```javascript
-session.sendInfo("Yes", {
-  name: "John Doe",
-  age: 30,
-  preferences: {
-    language: "en",
-    notifications: true
-  }
-});
-```
-
-#### Sending Data-Only Messages
-
-In case you want to send a data-only message, pass an empty string as the first argument:
-
-```javascript
-session.sendInfo("", {
-  timestamp: Date.now(),
-  ready: true
-});
-```
-
-**Note:** Data-only messages will still contain an empty text field in the transmitted payload.
-
-#### Receiving Info Messages
-
-To handle incoming info messages from the remote peer, use the `newInfo` event listener:
-
-```javascript
-window.initWebRTCWidget(token, options).then((widget) => {
-  widget.on('newRTCSession', (session) => {
-    session.on('accepted', () => {
-      // Send info messages after session is accepted
-      session.sendInfo("Ready to proceed");
-    });
-
-    // Listen for incoming info messages
-    session.on('newInfo', ({ originator, info }) => {
-      if (originator === 'remote') {
-        const parsedData = JSON.parse(info.body);
-        console.log('Received data:', parsedData);
-      }
-    });
-  });
-});
-```
-
-#### Receiving Transcription Events
-
-The widget automatically separates transcription data from regular info messages. Transcription events are emitted separately via the `transcription` event:
-
-```javascript
-window.initWebRTCWidget(token, options).then((widget) => {
-  widget.on('newRTCSession', (session) => {
-    // Listen for transcription events
-    session.on('transcription', (transcription) => {
-      console.log('Transcription originator:', transcription.originator);
-      console.log('Transcription messages:', transcription.messages);
-      
-      // transcription.messages is an array of message objects
-      transcription.messages.forEach((message) => {
-        console.log('Text:', message.text);
-      });
-    });
-  });
-});
-```
-
-**Note:** Transcription events are automatically filtered from `newInfo` events. If an info message contains a `_transcription` property, it will only be emitted as a `transcription` event, not as `newInfo`.
-
-**Technical Details:**
-- Info messages can only be sent during an active session (after the call is accepted)
-- The method sends data as JSON with content type `application/json`
-- The payload is automatically structured as: `{ text: "your message", data: { your: "json" } }`
-- Transcription events are parsed and emitted separately for easier handling
+- **Removed:** `widget.on('newRTCSession', ...)` and `widget.on('session', ...)`, the session objects they delivered (`session.on(...)`, `sendInfo`, `terminate`, `mute`, `unmute`, `sendDtmf`, `jssipRtcSession`, `direction`, `duration`, `hold`/`unhold` and so on), and the events only those sessions emitted (`newInfo`, `terminated`, `accepted`, `change`, `peerconnection`). Subscribing to `newRTCSession` logs a warning and never fires. Use `sessionCreated` and the other SDK events instead.
+- `connecting`, `connected` and `disconnected` payloads no longer carry `client` or `socket`; `disconnected` carries `{ code, reason }`.
+- `disconnected` fires after every call, including a remote hangup, because the widget disconnects after each call.
+- `registered`, `unregistered` and `registrationFailed` never fire: the widget does not send REGISTER.
+- With call transfers (REFER/replaces), the replaced session no longer gets an `ended` event.
+- A transport drop during an established call ends the call (previously the media continued while the WebSocket reconnected).
+- The mute button is disabled until the call is answered.
+- `initWebRTCWidget` resolves before the config has loaded, when the widget is inactive, and when the config fetch fails.
 
 ### Updating Settings at Runtime
 
@@ -321,7 +171,7 @@ The widget allows customization of UI labels through the initialization options.
 
 ```javascript
 window.initWebRTCWidget(token, {
-  userId: 'user123',  // Optional: User ID for SIP authentication
+  userId: 'user123',  // Optional: User ID for the call
   ui: {
     labels: {
       callButton: "Start Voice Chat",    // Custom call button text
@@ -489,5 +339,5 @@ MIT
 ## Acknowledgments
 
 - Built with Preact
-- Uses JsSIP for WebRTC signaling
+- Uses `@cognigy/click-to-call-sdk` for WebRTC signaling
 - Powered by Cognigy.AI

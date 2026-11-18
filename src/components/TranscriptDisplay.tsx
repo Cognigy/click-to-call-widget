@@ -11,7 +11,7 @@ export interface TranscriptMessage {
 }
 
 interface TranscriptDisplayProps {
-	messages: TranscriptMessage[];
+	messages: readonly TranscriptMessage[];
 	theme: Theme;
 	maxMessages?: number;
 	agentName?: string;

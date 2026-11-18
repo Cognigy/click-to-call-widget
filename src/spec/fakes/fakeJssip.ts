@@ -101,8 +101,6 @@ export class FakeRTCSession extends EventEmitter {
 export class FakeUA extends EventEmitter {
 	static instances: FakeUA[] = [];
 	static autoSession = true;
-	// false: connects but never registers.
-	static autoRegister = true;
 
 	config: Record<string, any>;
 	sessions: FakeRTCSession[] = [];
@@ -118,14 +116,9 @@ export class FakeUA extends EventEmitter {
 
 	private _started = false;
 	private _connected = false;
-	private _registered = false;
 
 	isConnected() {
 		return this._connected;
-	}
-
-	isRegistered() {
-		return this._registered;
 	}
 
 	start = vi.fn(() => {
@@ -137,12 +130,6 @@ export class FakeUA extends EventEmitter {
 			this._connected = true;
 			this.emit("connected", {});
 		});
-		if (this.config.register !== false && FakeUA.autoRegister) {
-			queueMicrotask(() => {
-				this._registered = true;
-				this.emit("registered", {});
-			});
-		}
 	});
 
 	// Like JsSIP: only a started UA disconnects (the widget calls stop() from its
@@ -154,7 +141,6 @@ export class FakeUA extends EventEmitter {
 		if (!this._started) return;
 		this._started = false;
 		this._connected = false;
-		this._registered = false;
 		queueMicrotask(() => this.emit("disconnected", {}));
 	});
 
@@ -196,5 +182,4 @@ export const fakeJssipModule = {
 export function resetFakeJssip(): void {
 	FakeUA.instances = [];
 	FakeUA.autoSession = true;
-	FakeUA.autoRegister = true;
 }

@@ -1,5 +1,4 @@
-import { useEffect, useRef, useReducer, useState, useImperativeHandle, useMemo } from "preact/hooks";
-import { forwardRef } from "preact/compat";
+import { useEffect, useRef, useState, useMemo } from "preact/hooks";
 
 import PrivacyDialog from "./PrivacyDialog";
 import { AvatarLogo } from "./AvatarLogo";
@@ -7,34 +6,34 @@ import { AudioWaveAnimation } from "./AudioWaveAnimation";
 import CallControls from "./CallControls";
 import TranscriptSection from "./TranscriptSection";
 import { CallDurationDisplay } from "./CallDurationDisplay";
-import type { TranscriptMessage } from "./TranscriptDisplay";
-import { getLocalStore, shouldEnableEndCall, callReducer, initialCallState } from "../helpers";
-import { CallActionType, ActionTypes } from "../types";
-import type { IUpdateableSettings, IWidgetInstance } from "../types";
-import { useWebrtcContext, useWebrtcDispatch } from "./WebrtcContextProvider";
-import type { SipSession } from "../utils/SipSession";
+import { getLocalStore, shouldEnableEndCall } from "../helpers";
+import { useWebrtcContext } from "./WebrtcContextProvider";
+import { useCallState } from "../hooks/useCallState";
+import { useCallSounds } from "../hooks/useCallSounds";
+import { toViewState } from "../viewState";
 
 import { CALL_PRIVACY_PERMISSION_KEY } from "../constants/constants";
 import { getTheme, getThemeCSSVariables } from "../constants/themes";
-import useSip from "../hooks/useSip";
-import useDemoCall from "../hooks/useDemoCall";
 import { VoiceBotWidgetContainer } from "./VoiceBotWidget.styles";
 
-const VoiceBotWidget = forwardRef<IWidgetInstance>((_, ref) => {
-	const config = useWebrtcContext();
-	const webrtcDispatch = useWebrtcDispatch();
-	const { startCall, userAgentRef, addExternalListener } = useSip();
+const RINGING_LEAD_IN_MS = 1200;
 
-	const [state, dispatch] = useReducer(callReducer, initialCallState);
+const VoiceBotWidget = () => {
+	const config = useWebrtcContext();
+	const client = config?.client ?? null;
+	const state = useCallState(client);
+	const { ringFor, stopRinging } = useCallSounds(state);
+
 	const [showPrivacyDialog, setShowPrivacyDialog] = useState(false);
-	const sessionRef = useRef<SipSession | null>(null);
-	const isStartingCallRef = useRef(false);
-	const startingCallTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	// Bumped on end and unmount so a pending start does not place the INVITE.
+	const callAttemptRef = useRef(0);
+	useEffect(() => () => {
+		callAttemptRef.current++;
+	}, []);
 
 	const serverConfig = config?.endpointSettings?.webrtcWidgetConfig;
 	const overrides = config?.options?.widgetOverrides;
 	const runtimeOverrides = config?.overrides?.webrtcWidgetConfig;
-	const isDemoMode = config?.options?.demoMode === true;
 	const settingsTranscriptionEnabled = config?.settings?.transcription?.enabled;
 
 	// updateSettings() wins over init-time widgetOverrides.
@@ -49,246 +48,61 @@ const VoiceBotWidget = forwardRef<IWidgetInstance>((_, ref) => {
 	const theme = useMemo(() => getTheme(widgetConfig?.theme), [widgetConfig?.theme]);
 	const themeCSS = useMemo(() => getThemeCSSVariables(theme), [theme]);
 
-	const { startDemoCall, stopDemoCall } = useDemoCall({
-		isTranscriptionEnabled,
-		dispatch,
-	});
-
-	const STARTING_CALL_TIMEOUT_MS = 10_000;
-
-	const setIsStartingCall = (value: boolean) => {
-		isStartingCallRef.current = value;
-		if (startingCallTimeoutRef.current) {
-			clearTimeout(startingCallTimeoutRef.current);
-			startingCallTimeoutRef.current = null;
+	const placeCall = async () => {
+		if (!client) {
+			console.error("[VoiceBotWidget] Call failed: WebRTC is not supported in this environment");
+			return;
 		}
-		if (value) {
-			startingCallTimeoutRef.current = setTimeout(() => {
-				if (!isStartingCallRef.current) return;
-				isStartingCallRef.current = false;
-				startingCallTimeoutRef.current = null;
-				dispatch({ type: CallActionType.END_CALL });
-				sessionRef.current?.terminate(480, "Call setup timeout");
-				userAgentRef.current?.stop();
-			}, STARTING_CALL_TIMEOUT_MS);
+		const attempt = ++callAttemptRef.current;
+		try {
+			const connecting = client.connect();
+			// Handled below; avoids an unhandled rejection while the lead-in rings.
+			connecting.catch(() => {});
+			await ringFor(RINGING_LEAD_IN_MS);
+			await connecting;
+			if (attempt !== callAttemptRef.current) return;
+			await client.startCall();
+		} catch (error) {
+			// A cancel rejects connect(); that is not an error worth logging.
+			if (attempt !== callAttemptRef.current) return;
+			// The client state already reflects the failure.
+			console.error("[VoiceBotWidget] Call failed:", error);
 		}
 	};
 
-
-	useEffect(() => {
-		const ua = userAgentRef?.current;
-		if (!ua || isDemoMode) return;
-
-		const onDisconnected = () => {
-			if (isStartingCallRef.current) {
-				return;
-			}
-			dispatch({ type: CallActionType.END_CALL });
-			ua.stop();
-		};
-
-		const onRegistrationFailed = () => {
-			setIsStartingCall(false);
-			setTimeout(() => {
-				dispatch({ type: CallActionType.END_CALL });
-			}, 500);
-		};
-
-		const onSession = (session: any) => {
-			setIsStartingCall(false);
-			sessionRef.current = session;
-			let activePc: RTCPeerConnection | null = null;
-
-			const syncStreamsFromPeerConnection = (pc: RTCPeerConnection) => {
-				const remoteTracks = pc
-					.getReceivers()
-					.map((receiver) => receiver.track)
-					.filter((track): track is MediaStreamTrack => !!track && track.kind === "audio");
-				const localTracks = pc
-					.getSenders()
-					.map((sender) => sender.track)
-					.filter((track): track is MediaStreamTrack => !!track && track.kind === "audio");
-
-				const remote = remoteTracks.length > 0 ? new MediaStream(remoteTracks) : null;
-				const local = localTracks.length > 0 ? new MediaStream(localTracks) : null;
-
-				if (remote || local) {
-					dispatch({ type: CallActionType.SET_STREAMS, remote, local });
-				}
-			};
-
-			const attachPeerConnection = (pc: RTCPeerConnection) => {
-				activePc = pc;
-
-				pc.ontrack = (event) => {
-					if (event.streams?.[0]) {
-						dispatch({ type: CallActionType.SET_REMOTE_STREAM, stream: event.streams[0] });
-						return;
-					}
-
-				if (event.track?.kind === "audio") {
-					const audioTracks = pc
-						.getReceivers()
-						.map((receiver) => receiver.track)
-						.filter((track): track is MediaStreamTrack => !!track && track.kind === "audio");
-
-					if (!audioTracks.find((track) => track.id === event.track.id)) {
-						audioTracks.push(event.track);
-					}
-
-					if (audioTracks.length > 0) {
-						dispatch({
-							type: CallActionType.SET_REMOTE_STREAM,
-							stream: new MediaStream(audioTracks),
-						});
-					}
-				}
-				};
-
-				syncStreamsFromPeerConnection(pc);
-			};
-
-			session.on("failed", () => {
-				dispatch({ type: CallActionType.END_CALL });
-			});
-			session.on("ended", () => {
-				dispatch({ type: CallActionType.END_CALL });
-			});
-			session.on("terminated", () => {
-				dispatch({ type: CallActionType.END_CALL });
-			});
-			session.on("change", () => {
-				dispatch({
-					type: CallActionType.SYNC_SESSION,
-					status: sessionRef.current?.status,
-					muted: !!sessionRef.current?.muted,
-				});
-			});
-			session.on("answered", () => {
-				dispatch({ type: CallActionType.CALL_ANSWERED });
-				if (activePc) {
-					syncStreamsFromPeerConnection(activePc);
-				}
-			});
-
-			session.on("transcription", (transcription: { originator: 'bot' | 'user'; messages: Array<{ text: string }> }) => {
-				if (transcription.messages && transcription.messages.length > 0) {
-					const newMessages: TranscriptMessage[] = transcription.messages.map((msg, index) => ({
-						id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${index}`,
-						text: msg.text,
-						originator: transcription.originator,
-						timestamp: Date.now(),
-					}));
-					dispatch({
-						type: CallActionType.UPDATE_TRANSCRIPT_MESSAGES,
-						updater: (prev) => {
-							const deduped = newMessages.filter((newMsg) => {
-								const isDuplicate = prev.some(
-									(existing) =>
-										existing.text === newMsg.text &&
-										existing.originator === newMsg.originator &&
-										Math.abs(existing.timestamp - newMsg.timestamp) < 1000
-								);
-								return !isDuplicate;
-							});
-							return deduped.length > 0 ? [...prev, ...deduped] : prev;
-						},
-					});
-				}
-			});
-
-			session.on("peerconnection", (pc: RTCPeerConnection) => {
-				attachPeerConnection(pc);
-				pc.addEventListener("negotiationneeded", () => {
-					syncStreamsFromPeerConnection(pc);
-				});
-			});
-
-			const currentPc = session.jssipRtcSession?._connection;
-			if (currentPc) {
-				attachPeerConnection(currentPc);
-			}
-		};
-
-		ua.on("disconnected", onDisconnected);
-		ua.on("registrationFailed", onRegistrationFailed);
-		ua.on("session", onSession);
-
-		return () => {
-			ua.removeListener("disconnected", onDisconnected);
-			ua.removeListener("registrationFailed", onRegistrationFailed);
-			ua.removeListener("session", onSession);
-			if (startingCallTimeoutRef.current) {
-				clearTimeout(startingCallTimeoutRef.current);
-				startingCallTimeoutRef.current = null;
-			}
-		};
-	}, [userAgentRef?.current, isDemoMode]);
-
 	const handleStartCall = () => {
-		try {
-			if (isDemoMode) {
-				startDemoCall().catch((error) => {
-					console.error("[VoiceBotWidget] Demo call failed:", error);
-					dispatch({ type: CallActionType.END_CALL });
-				});
-				return;
-			}
-
-			const permissionGranted = getLocalStore(CALL_PRIVACY_PERMISSION_KEY);
-			if (permissionGranted || !config?.settings?.privacyNotice?.enabled) {
-				setIsStartingCall(true);
-				dispatch({ type: CallActionType.START_CALL });
-				startCall();
-			} else {
-				setShowPrivacyDialog(true);
-			}
-		} catch (error) {
-			setIsStartingCall(false);
-			console.error(error);
-			dispatch({ type: CallActionType.END_CALL });
+		const permissionGranted = getLocalStore(CALL_PRIVACY_PERMISSION_KEY);
+		if (permissionGranted || !config?.settings?.privacyNotice?.enabled) {
+			placeCall();
+		} else {
+			setShowPrivacyDialog(true);
 		}
 	};
 
 	const handleEndCall = () => {
-		setIsStartingCall(false);
-		if (isDemoMode) {
-			stopDemoCall();
-			return;
-		}
-
-		dispatch({ type: CallActionType.END_CALL });
-		setShowPrivacyDialog(false);
-		sessionRef.current?.terminate(480, "Ended by user");
-		userAgentRef.current?.stop();
+		callAttemptRef.current++;
+		stopRinging();
+		client?.endCall().catch((error) => {
+			console.error("[VoiceBotWidget] End call failed:", error);
+		});
 	};
 
 	const toggleMute = () => {
-		const nextMuted = !state.isMuted;
-		dispatch({ type: CallActionType.SET_MUTED, muted: nextMuted });
-
-		if (isDemoMode) {
-			return;
-		}
-
-		if (nextMuted) {
-			sessionRef.current?.mute();
-		} else {
-			sessionRef.current?.unmute();
-		}
+		if (!client) return;
+		(state.muted ? client.unmute() : client.mute()).catch((error) => {
+			console.error("[VoiceBotWidget] Mute toggle failed:", error);
+		});
 	};
 
 	const onPermissionGranted = () => {
-		setIsStartingCall(true);
-		dispatch({ type: CallActionType.START_CALL });
 		localStorage.setItem(CALL_PRIVACY_PERMISSION_KEY, "true");
 		setShowPrivacyDialog(false);
-		startCall();
+		placeCall();
 	};
 
 	if (showPrivacyDialog) {
 		return (
-			<PrivacyDialog onClose={handleEndCall} onContinue={onPermissionGranted} />
+			<PrivacyDialog onClose={() => setShowPrivacyDialog(false)} onContinue={onPermissionGranted} />
 		);
 	}
 
@@ -302,31 +116,11 @@ const VoiceBotWidget = forwardRef<IWidgetInstance>((_, ref) => {
 		);
 	}
 
-	// `on()` goes through useSip's listener registry rather than straight to the
-	// current client: the client may not exist yet (it is created only once the
-	// endpoint config has loaded), and is recreated when the SIP settings change.
-	const eventHandler = addExternalListener;
-
-	const updateSettings = (settings: IUpdateableSettings) => {
-		webrtcDispatch({ type: ActionTypes.UPDATE_SETTINGS, payload: settings });
-	};
-
-	useImperativeHandle(
-		ref,
-		() => {
-			return {
-				on: eventHandler,
-				updateSettings,
-			};
-		},
-		[eventHandler, webrtcDispatch]
-	);
-
-	const { isCalling, isCallAnswered, isMuted, sessionStatus, transcriptMessages, remoteStream, localStream } = state;
+	const { isCalling, isCallAnswered, isMuted, sessionStatus, transcriptMessages, remoteStream, localStream } = toViewState(state);
 
 	const showTranscription = isTranscriptionEnabled && isCalling;
 	const hasVisibleTranscript = showTranscription && transcriptMessages.length > 0;
-	const enableEndCall = shouldEnableEndCall(sessionStatus ?? "");
+	const enableEndCall = shouldEnableEndCall(sessionStatus);
 	const hasCustomBackground = !!(widgetConfig.transcription?.backgroundMode === "custom" && widgetConfig.transcription?.backgroundColor);
 	const showConnectingMessage = isTranscriptionEnabled && isCalling && !isCallAnswered && hasCustomBackground;
 	const isWaitingForTranscript = isTranscriptionEnabled && isCalling && isCallAnswered && !hasVisibleTranscript && hasCustomBackground;
@@ -397,7 +191,8 @@ const VoiceBotWidget = forwardRef<IWidgetInstance>((_, ref) => {
 								onMuteToggle={toggleMute}
 								onEndCall={handleEndCall}
 								handleStartCall={handleStartCall}
-								disabled={!enableEndCall && !isDemoMode}
+								disabled={!enableEndCall}
+								muteDisabled={!isCallAnswered}
 							/>
 						</div>
 						<div className="webrtc_widget_powered_by">
@@ -411,6 +206,6 @@ const VoiceBotWidget = forwardRef<IWidgetInstance>((_, ref) => {
 			</div>
 		</VoiceBotWidgetContainer>
 	);
-});
+};
 
 export default VoiceBotWidget;

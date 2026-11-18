@@ -148,18 +148,6 @@
         border-radius: 4px;
       }
 
-      .demo-badge {
-        display: inline-block;
-        padding: 0.2rem 0.4rem;
-        background: linear-gradient(135deg, #10b981, #059669);
-        color: white;
-        font-size: 0.65rem;
-        border-radius: 4px;
-        text-transform: uppercase;
-        font-weight: 600;
-        margin-left: 0.5rem;
-      }
-
       @media (max-width: 768px) {
         body {
           padding: 10px;
@@ -229,13 +217,6 @@
       <div class="info-section">
         <h3>Demo Options</h3>
         <div class="option-toggle">
-          <input type="checkbox" id="demoMode"> 
-          <label for="demoMode">
-            Demo Mode
-            <span class="demo-badge">Mock Call</span>
-          </label>
-        </div>
-        <div class="option-toggle">
           <input type="checkbox" id="enableTranscription" checked>
           <label for="enableTranscription">Show Transcription</label>
         </div>
@@ -278,7 +259,6 @@
 
     <script type="module" src="./src/main.tsx"></script>
     <script>
-      let currentDemoMode = false;
       let currentTranscription = true;
       let currentTransparentBackground = true;
       let currentTranscriptBgColor = '#000000';
@@ -288,13 +268,8 @@
       let currentShowBackgroundText = true;
 
       function syncOptionsFromDom() {
-        const demoModeCheckbox = document.getElementById("demoMode");
         const transcriptionCheckbox = document.getElementById("enableTranscription");
         const transparentBackgroundCheckbox = document.getElementById("transparentBackground");
-
-        if (demoModeCheckbox) {
-          currentDemoMode = demoModeCheckbox.checked;
-        }
 
         if (transcriptionCheckbox) {
           currentTranscription = transcriptionCheckbox.checked;
@@ -354,11 +329,9 @@
 
           const options = { 
             userId,
-            demoMode: currentDemoMode,
             widgetOverrides
           };
           
-          console.log('[index.html] initWidget called with demoMode:', currentDemoMode);
 
           if (themeOverride) {
             options.widgetOverrides.theme = themeOverride;
@@ -367,12 +340,6 @@
           window.initWebRTCWidget(token, options);
         }
       }
-
-      document.getElementById('demoMode').addEventListener('change', (e) => {
-        currentDemoMode = e.target.checked;
-        console.log('[Demo] Demo mode changed to:', currentDemoMode);
-        initWidget();
-      });
 
       document.getElementById('enableTranscription').addEventListener('change', (e) => {
         currentTranscription = e.target.checked;
@@ -432,12 +399,6 @@
       });
 
       addEventListener("load", () => {
-        const demoModeCheckbox = document.getElementById("demoMode");
-        if (demoModeCheckbox) {
-          demoModeCheckbox.checked = false;
-          currentDemoMode = false;
-        }
-
         const transcriptionCheckbox = document.getElementById("enableTranscription");
         if (transcriptionCheckbox) {
           transcriptionCheckbox.checked = true;
