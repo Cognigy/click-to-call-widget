@@ -174,6 +174,47 @@ describe("SIP contract", () => {
 		await waitFor(() => expect(lastUA().stop).toHaveBeenCalled());
 	});
 
+	it("end call sends the final WebRTC stats INFO before the BYE", async () => {
+		serveConfig(legacyConfig());
+		await mountWidget({ userId: "u-1" });
+		await clickCall();
+		await waitFor(() => expect(lastUA().call).toHaveBeenCalled(), { timeout: 3000 });
+
+		const order: string[] = [];
+		const sendInfo = vi
+			.spyOn(FakeRTCSession.prototype, "sendInfo")
+			.mockImplementation((contentType: string) => {
+				order.push(`INFO ${contentType}`);
+			});
+		const session: FakeRTCSession = lastSession();
+		const terminate = session.terminate.getMockImplementation()!;
+		session.terminate.mockImplementation((opts?: unknown) => {
+			order.push("BYE");
+			terminate(opts);
+		});
+		const pc = {
+			connectionState: "connected",
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+			getReceivers: () => [],
+			getSenders: () => [],
+			getStats: vi.fn(async () => new Map()),
+		};
+		session.emit("peerconnection", { peerconnection: pc });
+		session.progress();
+		session.accept();
+		await screen.findByTestId("cognigy-mute-unmute-button");
+
+		await clickEnd();
+
+		await waitFor(() => expect(order).toContain("BYE"));
+		expect(order).toEqual([
+			"INFO application/vnd.cognigy.webrtc-stats+json",
+			"BYE",
+		]);
+		sendInfo.mockRestore();
+	});
+
 	it("mute toggles rtcSession.mute/unmute with audio+video", async () => {
 		serveConfig(legacyConfig());
 		await mountWidget({ userId: "u-1" });

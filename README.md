@@ -180,6 +180,7 @@ window.initWebRTCWidget(token, {},(widget) => {
 - `failed`: Triggered when the session fails
 - `ended`: Triggered when the session ends
 - `terminated`: Triggered when the session is terminated
+- `stats`: Triggered with a WebRTC stats sample every 30 seconds while the call is answered, when ICE fails, and once when the user ends the call. A sample holds cumulative audio counters (packet loss, jitter, concealed samples, jitter buffer delay, round-trip time, microphone level) and the selected ICE candidate types and protocols. It never contains IP addresses. The widget also sends each sample to Voice Gateway as an in-dialog SIP INFO with content type `application/vnd.cognigy.webrtc-stats+json`, which Voice Gateway logs for call diagnostics and does not pass to the bot.
 
 
 ### Sending Info Messages
